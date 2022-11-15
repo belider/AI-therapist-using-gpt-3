@@ -1,10 +1,8 @@
 import openai
 import os
 from telegram.ext import *
-# import keys
 
-# openai.api_key = keys.openai_api_key
-# bot_token = keys.bot_token
+print('imprting env veriables...')
 
 openai.api_key = os.getenv('OPENAI_API_KEY')
 bot_token = os.getenv('BOT_TOKEN')
