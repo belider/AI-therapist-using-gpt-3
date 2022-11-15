@@ -6,8 +6,8 @@ from telegram.ext import *
 # openai.api_key = keys.openai_api_key
 # bot_token = keys.bot_token
 
-os.getenv('OPENAI_API_KEY')
-os.getenv('BOT_TOKEN')
+openai.api_key = os.getenv('OPENAI_API_KEY')
+bot_token = os.getenv('BOT_TOKEN')
 
 print('starting up bot...')
 
