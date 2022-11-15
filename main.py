@@ -1,9 +1,13 @@
 import openai
 import os
 from telegram.ext import *
-import keys
+# import keys
 
-openai.api_key = keys.openai_api_key
+# openai.api_key = keys.openai_api_key
+# bot_token = keys.bot_token
+
+os.getenv('OPENAI_API_KEY')
+os.getenv('BOT_TOKEN')
 
 print('starting up bot...')
 
@@ -36,7 +40,7 @@ def error(update, context):
     print(f'Update: {update}\nCaused error: {context.error}')
  
 if __name__ == '__main__':
-    updater = Updater(keys.bot_token, use_context=True)
+    updater = Updater(bot_token, use_context=True)
     dp = updater.dispatcher
     
     #commands
