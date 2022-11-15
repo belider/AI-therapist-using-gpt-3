@@ -53,5 +53,5 @@ if __name__ == '__main__':
     dp.add_error_handler(error)
 
     #run bot
-    updater.start_polling(1.0)
+    updater.start_polling(0.5)
     updater.idle()
