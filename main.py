@@ -3,6 +3,7 @@ import os
 from datetime import datetime, timedelta
 import psycopg2
 from telegram.ext import *
+from telegram import ChatAction
 
 openai.api_key = os.getenv('OPENAI_API_KEY')
 bot_token = os.getenv('BOT_TOKEN')
@@ -41,19 +42,23 @@ def messages_history_to_text_dialogue(messages):
         else:
             # user message
             dialogue += f'Я: {msg[3]}\n\n'
-    print(dialogue)
+    # print(dialogue)
     return dialogue
         
 
 def start_command(update, context):
     current_dt = datetime.now()
     message_dt = update.message.date
+    user_id = update.message.chat.id
+
+    # "Sofi is typing..." animation
+    context.bot.send_chat_action(chat_id=user_id, action=ChatAction.TYPING)
 
     # savin /start message to DB
     # msg_type = 0 -> user comand
     # msg_type = 1 -> bot answer
     insert_query = f""" INSERT INTO messages (user_id, msg_type, msg_text, msg_dt) 
-                        VALUES ({update.message.chat.id}, {bool(0)}, '{update.message.text.strip()}', TIMESTAMP '{message_dt}') """
+                        VALUES ({user_id}, {bool(0)}, '{update.message.text.strip()}', TIMESTAMP '{message_dt}') """
     cursor.execute(insert_query)
     conn.commit()
 
@@ -65,7 +70,7 @@ def start_command(update, context):
 
     #saving reply message to DB
     insert_query = f""" INSERT INTO messages (user_id, msg_type, msg_text, msg_dt) 
-                        VALUES ({update.message.chat.id}, {bool(1)}, '{reply_text}', TIMESTAMP '{message_dt + response_time_delta}') """
+                        VALUES ({user_id}, {bool(1)}, '{reply_text}', TIMESTAMP '{message_dt + response_time_delta}') """
     cursor.execute(insert_query)
     conn.commit()
 
@@ -73,6 +78,9 @@ def newsession_command(update, context):
     current_dt = datetime.now()
     message_dt = update.message.date
     user_id = update.message.chat.id
+
+    # "Sofi is typing..." animation
+    context.bot.send_chat_action(chat_id=user_id, action=ChatAction.TYPING)
 
     # saving /newsession message to DB
     insert_query = f""" INSERT INTO messages (user_id, msg_type, msg_text, msg_dt) 
@@ -94,7 +102,7 @@ def newsession_command(update, context):
         max_tokens = 2048,
         temperature=0.3,
         stream=False, 
-        stop='\n'
+        stop='Я: '
         )
     response_text = response.choices[0].text
     print(f'--> response_text: {response_text}')
@@ -110,7 +118,10 @@ def newsession_command(update, context):
 
     
 
-def handle_response(text: str, user_id) -> str: 
+def handle_response(text: str, user_id, context) -> str: 
+    # "Sofi is typing..." animation
+    context.bot.send_chat_action(chat_id=user_id, action=ChatAction.TYPING)
+
     # select all messages from the previous command like /%
     select_query = f"""select *
                         from messages m
@@ -149,17 +160,43 @@ def handle_response(text: str, user_id) -> str:
         model="text-davinci-002",
         prompt=prompt,
         max_tokens = 2048,
+        n = 2,
         temperature=0.3,
         stream=False, 
-        stop='\n'
+        stop='Я: '
         )
-    return response.choices[0].text
+
+    last_messages = []
+    for el in messages_from_last_command: 
+        last_messages.append(el[3].strip().lower())
+    last_gpt_messages = last_messages[1::2]
+    print(f'----> last gpt message: {last_gpt_messages}\n')
+    
+    responses = []
+    responses.append(response.choices[0].text.lower().strip())
+    responses.append(response.choices[1].text.lower().strip())
+    print(f'-----> response[0]: {responses[0]}')
+    print(f'-----> response[1]: {responses[0]}\n')
+    # checking if gpt answered with the same response as previous message
+    if not responses[0] in last_gpt_messages: 
+        response_text = response.choices[0].text
+        i = 0
+    else:  
+        response_text = response.choices[1].text
+        i = 1
+
+    print(f'--> final response - {i}')
+    
+    return response_text
 
 def handle_message(update, context):
     text = str(update.message.text).strip() 
     user_id = update.message.chat.id
     message_dt = update.message.date
     user_tg_nick = update.message.from_user.username
+
+    # "Sofi is typing..." animation
+    context.bot.send_chat_action(chat_id=user_id, action=ChatAction.TYPING)
 
     current_dt = datetime.now()
 
@@ -186,24 +223,23 @@ def handle_message(update, context):
                         VALUES ({user_id}, {bool(0)}, '{text}', TIMESTAMP '{message_dt}');"""
     cursor.execute(insert_query)
     conn.commit()
-    print(f'message {text} inserted in messages DB\n')
+    # print(f'message {text} inserted in messages DB\n')
 
-    response = handle_response(text, user_id)
-    print(f'--> response: {response}')
+    response = handle_response(text, user_id, context)
     response_time_delta = datetime.now() - current_dt
     print(f'GPT response time: {response_time_delta}')
     
     #saving gpt response to DB
     insert_query = f""" INSERT INTO messages (user_id, msg_type, msg_text, msg_dt) 
                         VALUES ({user_id}, {bool(1)}, '{response}', TIMESTAMP '{message_dt + response_time_delta}');"""
-    print(f'message "{response}" inserted in DB')
+    # print(f'message "{response}" inserted in DB')
     cursor.execute(insert_query)
     conn.commit()
 
     update.message.reply_text(response)
 
 def error(update, context): 
-    print(f'Update: {update}\nCaused error: {context.error}')
+    print(f'Update: \n{update}\nCaused error: {context.error}')
  
 if __name__ == '__main__':
     updater = Updater(bot_token, use_context=True)
