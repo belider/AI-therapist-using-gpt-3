@@ -5,46 +5,16 @@ import psycopg2
 from telegram.ext import *
 from telegram import ChatAction
 
+from gpt_wrapper import *
+from database_logic import *
+from database_class import Database
+
 openai.api_key = os.getenv('OPENAI_API_KEY')
 bot_token = os.getenv('BOT_TOKEN')
 
-print('connecting to database...')
+db = Database()
 
-db_name = os.getenv('PGDATABASE')
-db_user = os.getenv('PGUSER')
-db_pass = os.getenv('PGPASSWORD')
-db_host = os.getenv('PGHOST')
-db_port = os.getenv('PGPORT')
-
-conn = psycopg2.connect(
-   database=db_name, user=db_user, password=db_pass, host=db_host, port=db_port
-)
-cursor = conn.cursor()
-cursor.execute("select version()")
-# read a single row from query result using fetchone() method.
-data = cursor.fetchone()
-print("Connection established to: ",data)
-#Closing the connection
-# cursor.close()
-# conn.close()
-
-print('starting up bot...')
-
-def messages_history_to_text_dialogue(messages): 
-    dialogue = ''
-    for msg in messages:
-        if msg[3] in ['/start', '/newsession']: 
-            # this is command message
-            continue
-        if msg[2]:
-            # bot message
-            dialogue += f'Терапевт: {msg[3]}\n'
-        else:
-            # user message
-            dialogue += f'Я: {msg[3]}\n\n'
-    # print(dialogue)
-    return dialogue
-        
+print('starting up a bot...')     
 
 def start_command(update, context):
     current_dt = datetime.now()
@@ -59,8 +29,7 @@ def start_command(update, context):
     # msg_type = 1 -> bot answer
     insert_query = f""" INSERT INTO messages (user_id, msg_type, msg_text, msg_dt) 
                         VALUES ({user_id}, {bool(0)}, '{update.message.text.strip()}', TIMESTAMP '{message_dt}') """
-    cursor.execute(insert_query)
-    conn.commit()
+    db.execute_insert_query(insert_query)
 
 
     reply_text = 'Привет, меня зовут Софи.\nМеня обучили принципам когнитивно-поведенческой терапии. Я постараюсь помочь тебе справиться с тревогой и сложными состояниями.\nКак я могу к тебе обращаться?'
@@ -71,8 +40,7 @@ def start_command(update, context):
     #saving reply message to DB
     insert_query = f""" INSERT INTO messages (user_id, msg_type, msg_text, msg_dt) 
                         VALUES ({user_id}, {bool(1)}, '{reply_text}', TIMESTAMP '{message_dt + response_time_delta}') """
-    cursor.execute(insert_query)
-    conn.commit()
+    db.execute_insert_query(insert_query)
 
 def newsession_command(update, context):
     current_dt = datetime.now()
@@ -83,27 +51,16 @@ def newsession_command(update, context):
     context.bot.send_chat_action(chat_id=user_id, action=ChatAction.TYPING)
 
     # saving /newsession message to DB
-    insert_query = f""" INSERT INTO messages (user_id, msg_type, msg_text, msg_dt) 
-                        VALUES ({user_id}, {bool(0)}, '{update.message.text.strip()}', TIMESTAMP '{update.message.date}') """
-    cursor.execute(insert_query)
-    conn.commit()
+    insert_message_in_db(db, user_id, is_bot=False, message_text=update.message.text.strip(), message_timestamp=update.message.date)
 
-    select_query = f"""select user_name from users where user_id = {user_id}"""        
-    cursor.execute(select_query)
-    name = cursor.fetchone()[0]
+    user_name = get_username_by_userid(db, user_id)
 
+    # constructing prompt
     prompt_starter = 'Ниже приводится беседа с когнитивно-поведенческим терапевтом.\n\n'
-    prompt = prompt_starter + 'Терапевт: Привет, меня зовут Софи. Как я могу к тебе обращаться?\n' + f'Я: {name}\n\n' + 'Терапевт:'
+    prompt = prompt_starter + 'Терапевт: Привет, меня зовут Софи. Как я могу к тебе обращаться?\n' + f'Я: {user_name}\n\n' + 'Терапевт:'
     print(f'--> prompt: {prompt}')
 
-    response = openai.Completion.create(
-        model="text-davinci-002",
-        prompt=prompt,
-        max_tokens = 2048,
-        temperature=0.3,
-        stream=False, 
-        stop='Я: '
-        )
+    response = create_gpt_response(prompt)
     response_text = response.choices[0].text
     print(f'--> response_text: {response_text}')
     update.message.reply_text(response_text)
@@ -111,86 +68,27 @@ def newsession_command(update, context):
     response_time_delta = datetime.now() - current_dt
 
     #saving reply message to DB
-    insert_query = f""" INSERT INTO messages (user_id, msg_type, msg_text, msg_dt) 
-                        VALUES ({update.message.chat.id}, {bool(1)}, '{response_text}', TIMESTAMP '{message_dt + response_time_delta}') """
-    cursor.execute(insert_query)
-    conn.commit()
+    insert_message_in_db(user_id, is_bot=True, message_text=response_text, message_timestamp=message_dt + response_time_delta)
 
-    
 
 def handle_response(text: str, user_id, context) -> str: 
     # "Sofi is typing..." animation
     context.bot.send_chat_action(chat_id=user_id, action=ChatAction.TYPING)
 
-    # select all messages from the previous command like /%
-    select_query = f"""select *
-                        from messages m
-                        join (select user_id, 
-                                        max(msg_id) last_command 
-                                from messages 
-                                where msg_text like '/%' group by user_id
-                        ) lm on lm.user_id = m.user_id 
-                            and m.msg_id >= lm.last_command 
-                        where m.user_id = {user_id}
-                        order by msg_id
-                        """
-    cursor.execute(select_query)
-    messages_from_last_command = cursor.fetchall()
-    # print(messages_from_last_command, '\n')
-    last_command = messages_from_last_command[0][3]
+    # select all messages from the previous command
+    messages_from_last_command = get_messages_from_last_user_command(db, user_id)
 
-    prompt_starter = 'Ниже приводится беседа с когнитивно-поведенческим терапевтом.\n\n'
-    dialogue_from_last_comand = messages_history_to_text_dialogue(messages_from_last_command)
-
-    if last_command == '/start':
-        prompt = ''
-        print('last command was /start')
-        prompt = prompt_starter + dialogue_from_last_comand + 'Терапевт:'
-    elif last_command == '/newsession':
-        select_query = f"""select user_name from users where user_id = {user_id}"""        
-        cursor.execute(select_query)
-        name = cursor.fetchone()[0]
-        print('last command was /newsession')
-        print(f'user name: {name}')
-        prompt = prompt_starter + 'Терапевт: Привет, меня зовут Софи. Как я могу к тебе обращаться?\n' + f'Я: {name}\n\n' + dialogue_from_last_comand + 'Терапевт:'
+    # getting user name
+    user_name = get_username_by_userid(db, user_id)
     
-    print(f'--> prompt: {prompt}')
-
-    response = openai.Completion.create(
-        model="text-davinci-002",
-        prompt=prompt,
-        max_tokens = 2048,
-        n = 2,
-        temperature=0.3,
-        stream=False, 
-        stop='Я: '
-        )
-
-    last_messages = []
-    for el in messages_from_last_command: 
-        last_messages.append(el[3].strip().lower())
-    last_gpt_messages = last_messages[1::2]
-    print(f'----> last gpt message: {last_gpt_messages}\n')
+    prompt = construct_prompt_from_messages_history(messages_from_last_command, user_name)
     
-    responses = []
-    responses.append(response.choices[0].text.lower().strip())
-    responses.append(response.choices[1].text.lower().strip())
-    print(f'-----> response[0]: {responses[0]}')
-    print(f'-----> response[1]: {responses[0]}\n')
-    # checking if gpt answered with the same response as previous message
-    if not responses[0] in last_gpt_messages: 
-        response_text = response.choices[0].text
-        i = 0
-    else:  
-        response_text = response.choices[1].text
-        i = 1
-
-    print(f'--> final response - {i}')
+    response_candidates = create_gpt_response(prompt)
     
-    return response_text
+    return get_not_repeating_not_empty_response(response_candidates, messages_from_last_command)
 
 def handle_message(update, context):
-    text = str(update.message.text).strip() 
+    message_text = str(update.message.text).strip() 
     user_id = update.message.chat.id
     message_dt = update.message.date
     user_tg_nick = update.message.from_user.username
@@ -200,41 +98,24 @@ def handle_message(update, context):
 
     current_dt = datetime.now()
 
-    print(f'User {user_id} says "{text}" <- at {message_dt}')
+    print(f'User {user_id} says "{message_text}" <- at {message_dt}')
 
     # checking if this was a reply to /start message
-    select_query = f"""SELECT msg_text from messages where user_id={user_id} and msg_type = false order by msg_dt desc limit 1"""
-    cursor.execute(select_query)
-    last_user_message = cursor.fetchall()[0]
-
-    if str(last_user_message[0]) == '/start': 
+    last_user_message = get_last_user_message(db, user_id)
+    if last_user_message == '/start': 
         # then current message is the user's Name
-        # saving name to DB
-        query = f"""UPDATE users SET user_id={user_id}, user_name='{text}', tg_nick='{user_tg_nick}' WHERE user_id={user_id};
-                    INSERT INTO users (user_id, user_name, tg_nick)
-                        SELECT {user_id}, '{text}', '{user_tg_nick}'
-                        WHERE NOT EXISTS (SELECT 1 FROM users WHERE user_id={user_id});"""
-        cursor.execute(query)
-        conn.commit()
-        print(f"name {text} inserted in users DB")
+        set_or_update_username(db, user_id, message_text, user_tg_nick)
 
     # saving user message to DB
-    insert_query = f"""INSERT INTO messages (user_id, msg_type, msg_text, msg_dt) 
-                        VALUES ({user_id}, {bool(0)}, '{text}', TIMESTAMP '{message_dt}');"""
-    cursor.execute(insert_query)
-    conn.commit()
-    # print(f'message {text} inserted in messages DB\n')
+    insert_message_in_db(db, user_id, is_bot=False, message_text=message_text, message_timestamp=message_dt)
 
-    response = handle_response(text, user_id, context)
+    response = handle_response(message_text, user_id, context)
+    
     response_time_delta = datetime.now() - current_dt
     print(f'GPT response time: {response_time_delta}')
     
     #saving gpt response to DB
-    insert_query = f""" INSERT INTO messages (user_id, msg_type, msg_text, msg_dt) 
-                        VALUES ({user_id}, {bool(1)}, '{response}', TIMESTAMP '{message_dt + response_time_delta}');"""
-    # print(f'message "{response}" inserted in DB')
-    cursor.execute(insert_query)
-    conn.commit()
+    insert_message_in_db(db, user_id, is_bot=True, message_text=response, message_timestamp=message_dt + response_time_delta)
 
     update.message.reply_text(response)
 
