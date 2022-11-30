@@ -1,16 +1,34 @@
 import openai
+import sys
 
 def create_gpt_response(prompt):
-    response = openai.Completion.create(
-        model="text-davinci-002",
-        prompt=prompt,
-        max_tokens = 500,
-        n = 2,
-        temperature=0.5,
-        stop="Я: "
-        )
+    response_candidates_text = []
+    try: 
+        response = openai.Completion.create(
+            model="text-davinci-002",
+            prompt=prompt,
+            max_tokens = 500,
+            n = 2,
+            temperature=0.5,
+            stop="Я: "
+            )
+        for i in range(len(response["choices"])):
+            response_candidates_text.append(response.choices[i].text)
+            
+    except Exception as err:
+        print(err)
+        # get details about the exception
+        err_type, err_obj, traceback = sys.exc_info()
+
+        # get the line number when exception occured
+        line_num = traceback.tb_lineno
+        # print the error
+        print ("\nERROR while making request to GPT:", err, "on line number:", line_num)
+        print ("openai traceback:", traceback, "-- type:", err_type)
+
+        response_candidates_text = ["Сообщение от команды бота: \nИзвините, Софи сейчас перегружена. \nПопробуйте написать снова чуть позже"]
     
-    return response
+    return response_candidates_text
 
 def messages_history_to_text_dialogue(messages, max_dialogue_len=3000): 
     dialogue = ''
@@ -56,21 +74,23 @@ def get_not_repeating_not_empty_response(response_candidates, messages_history):
     
     print(f'----> last gpt messages: {last_gpt_messages}\n')
     
-    responses = []
-    responses.append(response_candidates.choices[0].text.lower().strip())
-    responses.append(response_candidates.choices[1].text.lower().strip())
-    print(f'-----> response[0]: {responses[0]}')
-    print(f'-----> response[1]: {responses[0]}\n')
+    response_candidates_number = len(response_candidates)
 
-    if not responses[0] in last_gpt_messages: 
-        final_response_text = response_candidates.choices[0].text
-        i = 0
-    else:  
-        final_response_text = response_candidates.choices[1].text
-        i = 1
+    for i in range(response_candidates_number):
+        response_candidates[i] = response_candidates[i].lower().strip()
+        print(f'-----> response[{i}]: {response_candidates[i]}')
 
-    print(f'--> final response - {i}')
+    for i in range(response_candidates_number):
+        if not response_candidates[i] in last_gpt_messages: 
+            final_response_text = response_candidates[i]
+            k = i
+    else: 
+        final_response_text = response_candidates[0]
+        k = 0
 
+    print(f'--> final response - {k}')
+
+    # checking if GPT respond with empty text
     if final_response_text == '' or final_response_text == ' ': 
         final_response_text = "Извини, я не поняла. Попробуешь переформулировать?"
     

@@ -20,6 +20,7 @@ def start_command(update, context):
     current_dt = datetime.now()
     message_dt = update.message.date
     user_id = update.message.chat.id
+    message_text = update.message.text.strip()
 
     # "Sofi is typing..." animation
     context.bot.send_chat_action(chat_id=user_id, action=ChatAction.TYPING)
@@ -27,10 +28,7 @@ def start_command(update, context):
     # savin /start message to DB
     # msg_type = 0 -> user comand
     # msg_type = 1 -> bot answer
-    insert_query = f""" INSERT INTO messages (user_id, msg_type, msg_text, msg_dt) 
-                        VALUES ({user_id}, {bool(0)}, '{update.message.text.strip()}', TIMESTAMP '{message_dt}') """
-    db.execute_insert_query(insert_query)
-
+    insert_message_in_db(db, user_id, is_bot=False, message_text=message_text, message_timestamp=message_dt)
 
     reply_text = 'Привет, меня зовут Софи.\nМеня обучили принципам когнитивно-поведенческой терапии. Я постараюсь помочь тебе справиться с тревогой и сложными состояниями.\nКак я могу к тебе обращаться?'
     update.message.reply_text(reply_text)
@@ -38,9 +36,7 @@ def start_command(update, context):
     response_time_delta = datetime.now() - current_dt
 
     #saving reply message to DB
-    insert_query = f""" INSERT INTO messages (user_id, msg_type, msg_text, msg_dt) 
-                        VALUES ({user_id}, {bool(1)}, '{reply_text}', TIMESTAMP '{message_dt + response_time_delta}') """
-    db.execute_insert_query(insert_query)
+    insert_message_in_db(db, user_id, is_bot=True, message_text=reply_text, message_timestamp=message_dt + response_time_delta)
 
 def newsession_command(update, context):
     current_dt = datetime.now()
@@ -60,15 +56,17 @@ def newsession_command(update, context):
     prompt = prompt_starter + 'Терапевт: Привет, меня зовут Софи. Как я могу к тебе обращаться?\n' + f'Я: {user_name}\n\n' + 'Терапевт:'
     print(f'--> prompt: {prompt}')
 
-    response = create_gpt_response(prompt)
-    response_text = response.choices[0].text
-    print(f'--> response_text: {response_text}')
-    update.message.reply_text(response_text)
+    
+    response_candidates_text = create_gpt_response(prompt)
+    final_response_text = response_candidates_text[0]
+
+    print(f'--> response_text: {final_response_text}')
+    update.message.reply_text(final_response_text)
 
     response_time_delta = datetime.now() - current_dt
 
     #saving reply message to DB
-    insert_message_in_db(user_id, is_bot=True, message_text=response_text, message_timestamp=message_dt + response_time_delta)
+    insert_message_in_db(db, user_id, is_bot=True, message_text=final_response_text, message_timestamp=message_dt + response_time_delta)
 
 
 def handle_response(text: str, user_id, context) -> str: 
@@ -83,9 +81,9 @@ def handle_response(text: str, user_id, context) -> str:
     
     prompt = construct_prompt_from_messages_history(messages_from_last_command, user_name)
     
-    response_candidates = create_gpt_response(prompt)
+    response_candidates_text = create_gpt_response(prompt)
     
-    return get_not_repeating_not_empty_response(response_candidates, messages_from_last_command)
+    return get_not_repeating_not_empty_response(response_candidates_text, messages_from_last_command)
 
 def handle_message(update, context):
     message_text = str(update.message.text).strip() 
@@ -110,7 +108,7 @@ def handle_message(update, context):
     insert_message_in_db(db, user_id, is_bot=False, message_text=message_text, message_timestamp=message_dt)
 
     response = handle_response(message_text, user_id, context)
-    
+
     response_time_delta = datetime.now() - current_dt
     print(f'GPT response time: {response_time_delta}')
     
