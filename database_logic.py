@@ -1,14 +1,18 @@
+from decorators import *
 
+@print_postgre_exception
 def insert_message_in_db(db, user_id, is_bot, message_text, message_timestamp): 
     insert_query = f""" INSERT INTO messages (user_id, msg_type, msg_text, msg_dt) 
                         VALUES ({user_id}, {is_bot}, '{message_text}', TIMESTAMP '{message_timestamp}') """
     db.execute_insert_query(insert_query)
 
+@print_postgre_exception
 def get_username_by_userid(db, user_id): 
     select_query = f"""select user_name from users where user_id = {user_id}"""
     user_name = db.execute_select_query(select_query)[0][0]
     return user_name
 
+@print_postgre_exception
 def get_messages_from_last_user_command(db, user_id):
     select_query = f"""select *
                         from messages m
@@ -24,6 +28,7 @@ def get_messages_from_last_user_command(db, user_id):
     messages_from_last_command = db.execute_select_query(select_query)
     return messages_from_last_command
 
+@print_postgre_exception
 def set_or_update_username(db, user_id, user_name, user_tg_nick):
     query = f"""UPDATE users SET user_id={user_id}, user_name='{user_name}', tg_nick='{user_tg_nick}' WHERE user_id={user_id};
                 INSERT INTO users (user_id, user_name, tg_nick)
@@ -32,6 +37,7 @@ def set_or_update_username(db, user_id, user_name, user_tg_nick):
     db.execute_insert_query(query)
     print(f"name {user_name} inserted in users DB")
 
+@print_postgre_exception
 def get_last_user_message(db, user_id): 
     select_query = f"""SELECT msg_text from messages where user_id={user_id} and msg_type = false order by msg_dt desc limit 1"""
     last_user_message = db.execute_select_query(select_query)[0]
