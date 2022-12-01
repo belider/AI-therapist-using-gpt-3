@@ -76,12 +76,13 @@ def get_not_repeating_not_empty_response(response_candidates, messages_history):
     
     response_candidates_number = len(response_candidates)
 
+    response_candidates_lower_case = []
     for i in range(response_candidates_number):
-        response_candidates[i] = response_candidates[i].lower().strip()
-        print(f'-----> response[{i}]: {response_candidates[i]}')
+        response_candidates_lower_case.append(response_candidates[i].lower().strip())
+        print(f'-----> response[{i}]: {response_candidates_lower_case[i]}')
 
     for i in range(response_candidates_number):
-        if not response_candidates[i] in last_gpt_messages: 
+        if not response_candidates_lower_case[i] in last_gpt_messages: 
             final_response_text = response_candidates[i]
             k = i
     else: 

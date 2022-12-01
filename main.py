@@ -3,7 +3,8 @@ import os
 from datetime import datetime, timedelta
 import psycopg2
 from telegram.ext import *
-from telegram import ChatAction
+from telegram import *
+import time
 
 from gpt_wrapper import *
 from database_logic import *
@@ -16,8 +17,35 @@ db = Database()
 
 print('starting up a bot...')     
 
-def start_command(update, context):
+def query_handler(update, context): 
     current_dt = datetime.now()
+    query = update.callback_query
+    update.callback_query.answer()
+    
+    user_id = query.message.chat.id
+    message_dt = query.message.date
+    
+    if "continue" in query.data: 
+        response_text = """Первые 7 дней можно неограниченно общаться с Софи бесплатно. 
+Дальше бот предложит оплатить подписку, не пугайтесь. """
+
+        buttons = [[InlineKeyboardButton("✔️ Начать сессию", callback_data="start_session")]]
+        reply_markup = InlineKeyboardMarkup(buttons)
+
+        query.edit_message_text(response_text, reply_markup=reply_markup)
+    elif "start_session" in query.data: 
+        query.delete_message()
+        time.sleep(0.5)
+
+        response_text = "Меня зовут Софи. Как я могу к тебе обращаться?"
+        query.message.reply_text(response_text)
+    
+        response_time_delta = datetime.now() - current_dt
+
+        #saving reply message to DB
+        insert_message_in_db(db, user_id, is_bot=True, message_text=response_text, message_timestamp=message_dt + response_time_delta)
+
+def start_command(update, context):
     message_dt = update.message.date
     user_id = update.message.chat.id
     message_text = update.message.text.strip()
@@ -29,14 +57,19 @@ def start_command(update, context):
     # msg_type = 0 -> user comand
     # msg_type = 1 -> bot answer
     insert_message_in_db(db, user_id, is_bot=False, message_text=message_text, message_timestamp=message_dt)
+    
+    # TODO start message with inline button
+    reply_text = """Привет 👋
+Софи - это бот на основе искусственного интеллекта. Она хороший психолог и собеседник. Иногда ее ответы смешат, иногда наводят на размышления. Попробуй написать свой запрос. 
 
-    reply_text = 'Привет, меня зовут Софи.\nМеня обучили принципам когнитивно-поведенческой терапии. Я постараюсь помочь тебе справиться с тревогой и сложными состояниями.\nКак я могу к тебе обращаться?'
-    update.message.reply_text(reply_text)
+Все сообщения конфиденциальны. Бот сохраняет их анонимно и использует только чтобы отвечать с учетом предыдущих сообщений. 
 
-    response_time_delta = datetime.now() - current_dt
+Если в какой-то момент почувствуешь, что диалог зашел в тупик, можешь начать новую сессию с помощью /newsession"""
 
-    #saving reply message to DB
-    insert_message_in_db(db, user_id, is_bot=True, message_text=reply_text, message_timestamp=message_dt + response_time_delta)
+    buttons = [[InlineKeyboardButton("✔️ Продолжить", callback_data="continue")]]
+    reply_markup = InlineKeyboardMarkup(buttons)
+
+    update.message.reply_text(reply_text, reply_markup=reply_markup)
 
 def newsession_command(update, context):
     current_dt = datetime.now()
@@ -95,19 +128,22 @@ def handle_message(update, context):
     context.bot.send_chat_action(chat_id=user_id, action=ChatAction.TYPING)
 
     current_dt = datetime.now()
+    last_user_message = get_last_user_message(db, user_id)
 
     print(f'User {user_id} says "{message_text}" <- at {message_dt}')
+    # saving user message to DB
+    insert_message_in_db(db, user_id, is_bot=False, message_text=message_text, message_timestamp=message_dt)
 
-    # checking if this was a reply to /start message
-    last_user_message = get_last_user_message(db, user_id)
+    # checking if this was a reply to Welcome message
+    print("==> last_user_message: ", last_user_message)
     if last_user_message == '/start': 
         # then current message is the user's Name
         set_or_update_username(db, user_id, message_text, user_tg_nick)
 
-    # saving user message to DB
-    insert_message_in_db(db, user_id, is_bot=False, message_text=message_text, message_timestamp=message_dt)
-
-    response = handle_response(message_text, user_id, context)
+        # TODO send standart message
+        response = f"Привет, {message_text}. Как ты себя чувствуешь сегодня?"
+    else: 
+        response = handle_response(message_text, user_id, context)
 
     response_time_delta = datetime.now() - current_dt
     print(f'GPT response time: {response_time_delta}')
@@ -130,6 +166,7 @@ if __name__ == '__main__':
 
     #messages
     dp.add_handler(MessageHandler(Filters.text, handle_message))
+    dp.add_handler(CallbackQueryHandler(query_handler))
     
     #error
     dp.add_error_handler(error)
