@@ -1,7 +1,9 @@
 import openai
 import sys
+from database_logic import *
+from datetime import datetime
 
-def create_gpt_response(prompt):
+def create_gpt_response(prompt, db, user_id):
     response_candidates_text = []
     try: 
         response = openai.Completion.create(
@@ -12,9 +14,19 @@ def create_gpt_response(prompt):
             temperature=0.5,
             stop="Я: "
             )
+        #calculating request cost
+        total_tokens = response["usage"]["total_tokens"]
+        if "davinci" in response["model"]: 
+            cost = total_tokens * 0.02 / 1000
+        elif "curie" in response["model"]: 
+            cost = total_tokens * 0.002 / 1000
+        # saving request info
+        # TODO add request_dt
+        insert_gpt_request_to_db(db, request_id=response["id"], user_id=user_id, request_dt=datetime.now(), prompt_text=prompt, completion_text=response["choices"][0].text, total_tokens=total_tokens, model=response["model"], cost=cost)
+
         for i in range(len(response["choices"])):
             response_candidates_text.append(response.choices[i].text)
-            
+
     except Exception as err:
         print(err)
         # get details about the exception

@@ -105,7 +105,7 @@ def newsession_command(update, context):
     print(f'--> prompt: {prompt}')
 
     
-    response_candidates_text = create_gpt_response(prompt)
+    response_candidates_text = create_gpt_response(prompt, db, user_id)
     final_response_text = response_candidates_text[0]
 
     print(f'--> response_text: {final_response_text}')
@@ -129,7 +129,7 @@ def handle_response(text: str, user_id, context) -> str:
     
     prompt = construct_prompt_from_messages_history(messages_from_last_command, user_name)
     
-    response_candidates_text = create_gpt_response(prompt)
+    response_candidates_text = create_gpt_response(prompt, db, user_id)
     
     return get_not_repeating_not_empty_response(response_candidates_text, messages_from_last_command)
 

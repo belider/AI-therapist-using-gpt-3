@@ -44,3 +44,9 @@ def get_last_user_message(db, user_id):
     last_user_message = str(last_user_message[0])
 
     return last_user_message
+
+@print_postgre_exception
+def insert_gpt_request_to_db(db, request_id, user_id, request_dt, prompt_text, completion_text, total_tokens, model, cost):
+    insert_query = f""" INSERT INTO gpt_requests (request_id, user_id, request_dt, prompt_text, completion_text, total_tokens, model, cost) 
+                        VALUES ('{request_id}', {user_id}, TIMESTAMP '{request_dt}', '{prompt_text}', '{completion_text}', {total_tokens}, '{model}',{cost}) """
+    db.execute_insert_query(insert_query)
