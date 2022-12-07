@@ -9,7 +9,11 @@ def insert_message_in_db(db, user_id, is_bot, message_text, message_timestamp):
 @print_postgre_exception
 def get_username_by_userid(db, user_id): 
     select_query = f"""select user_name from users where user_id = {user_id}"""
-    user_name = db.execute_select_query(select_query)[0][0]
+    res = db.execute_select_query(select_query)
+    if res == []:
+        user_name = 'аноним'
+    else:
+        user_name = res[0][0]
     return user_name
 
 @print_postgre_exception
