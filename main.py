@@ -10,6 +10,27 @@ from gpt_wrapper import *
 from database_logic import *
 from database_class import Database
 
+import pymorphy2
+morph = pymorphy2.MorphAnalyzer()
+from googletrans import Translator
+translator = Translator()
+
+def get_gender_by_user_name(user_name: str, telegram_name: str) -> str:
+    name = user_name
+    gender = morph.parse(name)[0].tag.gender
+    if gender == None or gender == 'neut': 
+       # translating a user_name
+       name = translator.translate(name, dest='ru').text
+       gender =  morph.parse(name)[0].tag.gender
+    if gender == None or gender == 'neut':
+        # translating a telegram name
+        name = telegram_name
+        name = translator.translate(name, dest='ru').text
+        gender =  morph.parse(name)[0].tag.gender
+    if gender == None or gender == 'neut':
+        gender = 'masc'
+    return gender
+
 openai.api_key = os.getenv('OPENAI_API_KEY')
 bot_token = os.getenv('BOT_TOKEN')
 
@@ -138,6 +159,8 @@ def handle_message(update, context):
     user_id = update.message.chat.id
     message_dt = update.message.date
     user_tg_nick = update.message.from_user.username
+    user_tg_name = str(update.message.from_user.first_name) + ' ' + str(update.message.from_user.last_name)
+    user_tg_name = user_tg_name.replace('None', '').strip()
 
     # "Sofi is typing..." animation
     context.bot.send_chat_action(chat_id=user_id, action=ChatAction.TYPING)
@@ -154,14 +177,19 @@ def handle_message(update, context):
     if last_user_message == '/start': 
         # then current message is the user's Name
         set_or_update_username(db, user_id, message_text, user_tg_nick)
-
-        # TODO send standart message
-        response = f"Привет, {message_text}. Как ты себя чувствуешь сегодня?"
+        print(f'user tg name: {user_tg_name}')
+        gender = get_gender_by_user_name(user_name = message_text, telegram_name=user_tg_name)
+        print(f'user gender: {gender}')
+        # TODO save user gender and tg_name to db
+        if gender == 'femn': 
+            response = f"Привет, {message_text}. Что бы ты хотела обсудить?"
+        else: 
+            response = f"Привет, {message_text}. Что бы ты хотел обсудить?"
     else: 
         response = handle_response(message_text, user_id, context)
 
     response_time_delta = datetime.now() - current_dt
-    print(f'GPT response time: {response_time_delta}')
+    print(f'Response time: {response_time_delta}')
     
     #saving gpt response to DB
     insert_message_in_db(db, user_id, is_bot=True, message_text=response, message_timestamp=message_dt + response_time_delta)
