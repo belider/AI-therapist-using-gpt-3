@@ -21,13 +21,23 @@ def get_gender_by_user_name(user_name: str, telegram_name: str):
     if gender == None or gender == 'neut': 
        # translating a user_name
        name = translator.translate(name, dest='ru').text
+       print(f'translated user name: {name}')
        gender =  morph.parse(name)[0].tag.gender
     if gender == None or gender == 'neut':
         # translating a telegram name
         name = telegram_name
+        print(f'user tg name: {telegram_name}')
         name = translator.translate(name, dest='ru').text
+        print(f'translated tg name: {name}')
         gender =  morph.parse(name)[0].tag.gender
-
+        print(f'gender by translated tg name: {gender}')
+    if gender == None or gender == 'neut':
+        name_split = name.split(' ')
+        for name_part in name_split: 
+            g = morph.parse(name_part)[0].tag.gender
+            print(f'gender by name part "{name_part}": {g}')
+            if g == 'masc' or g == 'femn':
+                gender = g
     return gender
 
 openai.api_key = os.getenv('OPENAI_API_KEY')
@@ -174,11 +184,12 @@ def handle_message(update, context):
     print("==> last_user_message: ", last_user_message)
     if last_user_message == '/start': 
         # then current message is the user's Name
-        set_or_update_username(db, user_id, message_text, user_tg_nick)
-        print(f'user tg name: {user_tg_name}')
-        gender = get_gender_by_user_name(user_name = message_text, telegram_name=user_tg_name)
+
+        gender = get_gender_by_user_name(user_name=message_text, telegram_name=user_tg_name)
         print(f'user gender: {gender}')
-        # TODO save user gender and tg_name to db
+        # saving user name and gender to DB
+        set_or_update_username(db, user_id, message_text, user_tg_nick, user_tg_name, gender)
+
         if gender == 'femn': 
             response = f"Привет, {message_text}. Что бы ты хотела обсудить?"
         else: 

@@ -33,10 +33,10 @@ def get_messages_from_last_user_command(db, user_id):
     return messages_from_last_command
 
 @print_postgre_exception
-def set_or_update_username(db, user_id, user_name, user_tg_nick):
-    query = f"""UPDATE users SET user_id={user_id}, user_name='{user_name}', tg_nick='{user_tg_nick}' WHERE user_id={user_id};
-                INSERT INTO users (user_id, user_name, tg_nick)
-                    SELECT {user_id}, '{user_name}', '{user_tg_nick}'
+def set_or_update_username(db, user_id, user_name, user_tg_nick, user_tg_name, gender):
+    query = f"""UPDATE users SET user_id={user_id}, user_name='{user_name}', tg_nick='{user_tg_nick}', tg_name='{user_tg_name}', gender='{gender}' WHERE user_id={user_id};
+                INSERT INTO users (user_id, user_name, tg_nick, tg_name, gender)
+                    SELECT {user_id}, '{user_name}', '{user_tg_nick}', '{user_tg_name}', '{gender}'
                     WHERE NOT EXISTS (SELECT 1 FROM users WHERE user_id={user_id});"""
     db.execute_insert_query(query)
     print(f"name {user_name} inserted in users DB")
