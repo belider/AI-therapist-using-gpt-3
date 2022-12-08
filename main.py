@@ -160,7 +160,7 @@ def handle_response(text: str, user_id, context) -> str:
     
     response_candidates_text = create_gpt_response(prompt, db, user_id)
     
-    return get_not_repeating_not_empty_response(response_candidates_text, messages_from_last_command)
+    return get_not_repeating_not_empty_response(db, response_candidates_text, messages_from_last_command, user_id)
 
 def handle_message(update, context):
     message_text = str(update.message.text).strip() 

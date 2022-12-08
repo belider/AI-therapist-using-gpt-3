@@ -2,6 +2,7 @@ import openai
 import sys
 from database_logic import *
 from datetime import datetime
+import random
 
 def create_gpt_response(prompt, db, user_id):
     response_candidates_text = []
@@ -9,8 +10,8 @@ def create_gpt_response(prompt, db, user_id):
         response = openai.Completion.create(
             model="text-davinci-003",
             prompt=prompt,
-            max_tokens = 500,
-            n = 2,
+            max_tokens = 1000,
+            n = 1,
             temperature=0.5,
             stop="Я: "
             )
@@ -42,14 +43,13 @@ def create_gpt_response(prompt, db, user_id):
     
     return response_candidates_text
 
-def messages_history_to_text_dialogue(messages, max_dialogue_len=3000): 
+def messages_history_to_text_dialogue(messages, max_dialogue_len=2000, max_messages_len=4): 
     dialogue = ''
-    
-    for msg in reversed(messages):
+    for index, msg in enumerate(reversed(messages), start=1):
         if msg[3] in ['/start', '/newsession']: 
             # this is command message
             continue
-        if len(dialogue) > max_dialogue_len: 
+        if len(dialogue) > max_dialogue_len or index > max_messages_len: 
             return dialogue
         if msg[2]:
             # bot message
@@ -77,7 +77,9 @@ def construct_prompt_from_messages_history(messages_from_last_command, user_name
     print(f'--> prompt: {prompt}')
     return prompt
 
-def get_not_repeating_not_empty_response(response_candidates, messages_history):
+def get_not_repeating_not_empty_response(db, response_candidates, messages_history, user_id):
+    user_name = get_username_by_userid(db, user_id)
+    
     # getting gpt responses from dialogue
     last_gpt_messages = []
     for el in messages_history: 
@@ -92,19 +94,25 @@ def get_not_repeating_not_empty_response(response_candidates, messages_history):
     for i in range(response_candidates_number):
         response_candidates_lower_case.append(response_candidates[i].lower().strip())
         print(f'-----> response[{i}]: {response_candidates_lower_case[i]}')
+    
+    final_response_text = response_candidates_lower_case[0]
 
-    for i in range(response_candidates_number):
-        if not response_candidates_lower_case[i] in last_gpt_messages: 
-            final_response_text = response_candidates[i]
-            k = i
-    else: 
-        final_response_text = response_candidates[0]
-        k = 0
-
-    print(f'--> final response - {k}')
+    for message_item in last_gpt_messages: 
+        if final_response_text in message_item: 
+            responsses_in_case_of_looping = [
+                "Расскажи подробнее о том что ты чувствуешь, я попробую помочь", 
+                f"{user_name}, ты со всем справишься! Как я могу тебе помочь?", 
+                "Представляю что ты чувствуешь сейчас... Как я могу тебе помочь?", 
+                "Я бы тебя обняла сейчас, если была человеком <3", 
+                f"{user_name}, как я могу помочь тебе в этой ситуации?", 
+                "Расскажешь подробнее об этом?"
+            ]
+            rand_item = random.randint(0, len(responsses_in_case_of_looping)-1)
+            final_response_text = responsses_in_case_of_looping[rand_item]
 
     # checking if GPT respond with empty text
     if final_response_text == '' or final_response_text == ' ': 
         final_response_text = "Извини, я не поняла. Попробуешь переформулировать?"
     
+    print(f'--> final response text: {final_response_text}')
     return final_response_text
