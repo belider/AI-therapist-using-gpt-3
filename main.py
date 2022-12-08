@@ -67,15 +67,6 @@ def query_handler(update, context):
 В этом случае Софи расскажет, что знает из статей и книг по психологии. 
 
 /newsession - команда на случай, если диалог зайдет в тупик"""
-        buttons = [[InlineKeyboardButton("✔️ Продолжить", callback_data="continue2")]]
-        reply_markup = InlineKeyboardMarkup(buttons)
-
-        query.edit_message_text(response_text, reply_markup=reply_markup)
-
-    elif "continue2" in query.data: 
-        response_text = """Первые 7 дней можно неограниченно общаться бесплатно. 
-Дальше бот предложит оплатить подписку. """
-
         buttons = [[InlineKeyboardButton("✔️ Начать сессию", callback_data="start_session")]]
         reply_markup = InlineKeyboardMarkup(buttons)
 
