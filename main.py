@@ -187,12 +187,14 @@ def handle_message(update, context):
             # gender is 'masc', 'neut' or None
             response = f"Привет, {message_text}. Что бы ты хотел обсудить?"
         update.message.reply_text(response)
-    elif is_paid_limit_ended(db, user_id): 
-        print('user messages limit has ended. Sending payment message...')
-        # send monetization message if total_messages > paid messagess
+    
+    (paid_limit, paid_limit_status) = get_paid_limit_and_status_by_user(db, user_id)
+    if paid_limit_status == 'trial ended': 
+        print('User messages limit has ended.')
+        # send monetization message
         response = f"""_Сообщение от команды бота: _
 
-Ваш бесплатный лимит на {50} сообщений истек. 
+Ваш бесплатный лимит на {paid_limit} сообщений истек. 
 
 Мы стремились сделать Софи как можно более доступным и простым способом психологической поддержки. 
 Однако, она использует дорогие модели искусственного интеллекта, чтобы ответы были максимально полезны. 
@@ -200,7 +202,19 @@ def handle_message(update, context):
 Если вы хотите продолжить, вы можете купить пакет на 500 сообщений за $4.99."""
         buttons = [[InlineKeyboardButton(text="Оплатить", url="https://anybodygo.com/", pay=True)]]
         reply_markup = InlineKeyboardMarkup(buttons)
-        # TODO payment_message_send
+        update.message.reply_text(response, reply_markup=reply_markup, parse_mode='markdown')
+    elif paid_limit_status == 'paid plan ended': 
+        # send monetization message
+        response = f"""_Сообщение от команды бота: _
+
+Ваш лимит на {paid_limit} сообщений истек. 
+
+Мы стремились сделать Софи как можно более доступным и простым способом психологической поддержки. 
+Однако, она использует дорогие модели искусственного интеллекта, чтобы ответы были максимально полезны. 
+
+Если вы хотите продолжить, вы можете купить еще один пакет на 500 сообщений за $4.99."""
+        buttons = [[InlineKeyboardButton(text="Оплатить", url="https://anybodygo.com/", pay=True)]]
+        reply_markup = InlineKeyboardMarkup(buttons)
         update.message.reply_text(response, reply_markup=reply_markup, parse_mode='markdown')
     else: 
         response = handle_response(message_text, user_id, context)
