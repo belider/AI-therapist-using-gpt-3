@@ -54,3 +54,19 @@ def insert_gpt_request_to_db(db, request_id, user_id, request_dt, prompt_text, c
     insert_query = f""" INSERT INTO gpt_requests (request_id, user_id, request_dt, prompt_text, completion_text, total_tokens, model, cost) 
                         VALUES ('{request_id}', {user_id}, TIMESTAMP '{request_dt}', '{prompt_text}', '{completion_text}', {total_tokens}, '{model}',{cost}) """
     db.execute_insert_query(insert_query)
+
+@print_postgre_exception
+def is_paid_limit_ended(db, user_id) -> bool: 
+    select_query = f"""select sum(paid_messages)
+                        from user_paid_limits
+                        where user_id={user_id}"""
+    messages_limit = db.execute_select_query(select_query)[0]
+    
+    messages_sent = 0
+    select_query = f"""select count(distinct request_id) 
+                        from gpt_requests
+                        where user_id={user_id}"""
+    messages_sent = db.execute_select_query(select_query)[0]
+    print(f'messages sent = {messages_sent}')
+    print(f'paid messages limit = {messages_limit}')
+    return messages_sent > messages_limit

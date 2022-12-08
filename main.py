@@ -195,16 +195,31 @@ def handle_message(update, context):
         else: 
             # gender is 'masc', 'neut' or None
             response = f"Привет, {message_text}. Что бы ты хотел обсудить?"
+        update.message.reply_text(response)
+    elif is_paid_limit_ended(db, user_id): 
+        print('user messages limit has ended. Sending payment message...')
+        # send monetization message if total_messages > paid messagess
+        response = f"""_Сообщение от команды бота: _
+
+Ваш бесплатный лимит на {50} сообщений истек. 
+
+Мы стремились сделать Софи как можно более доступным и простым способом психологической поддержки. 
+Однако, она использует дорогие модели искусственного интеллекта, чтобы ответы были максимально полезны. 
+
+Если вы хотите продолжить, вы можете купить пакет на 500 сообщений за $4.99."""
+        buttons = [[InlineKeyboardButton(text="Оплатить", url="https://anybodygo.com/", pay=True)]]
+        reply_markup = InlineKeyboardMarkup(buttons)
+        # TODO payment_message_send
+        update.message.reply_text(response, reply_markup=reply_markup, parse_mode='markdown')
     else: 
         response = handle_response(message_text, user_id, context)
+        update.message.reply_text(response)
 
     response_time_delta = datetime.now() - current_dt
     print(f'Response time: {response_time_delta}')
     
     #saving gpt response to DB
     insert_message_in_db(db, user_id, is_bot=True, message_text=response, message_timestamp=message_dt + response_time_delta)
-
-    update.message.reply_text(response)
 
 def error(update, context): 
     print(f'Update: \n{update}\nCaused error: {context.error}')
