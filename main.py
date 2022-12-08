@@ -15,7 +15,7 @@ morph = pymorphy2.MorphAnalyzer()
 from googletrans import Translator
 translator = Translator()
 
-def get_gender_by_user_name(user_name: str, telegram_name: str) -> str:
+def get_gender_by_user_name(user_name: str, telegram_name: str):
     name = user_name
     gender = morph.parse(name)[0].tag.gender
     if gender == None or gender == 'neut': 
@@ -27,8 +27,7 @@ def get_gender_by_user_name(user_name: str, telegram_name: str) -> str:
         name = telegram_name
         name = translator.translate(name, dest='ru').text
         gender =  morph.parse(name)[0].tag.gender
-    if gender == None or gender == 'neut':
-        gender = 'masc'
+
     return gender
 
 openai.api_key = os.getenv('OPENAI_API_KEY')
@@ -96,7 +95,6 @@ def start_command(update, context):
     # msg_type = 1 -> bot answer
     insert_message_in_db(db, user_id, is_bot=False, message_text=message_text, message_timestamp=message_dt)
     
-    # TODO start message with inline button
     reply_text = """Привет 👋
 Софи - это бот на основе искусственного интеллекта. Она хороший психолог и собеседник. Иногда ее ответы смешат, иногда наводят на размышления. Попробуй написать свой запрос. 
 
@@ -184,6 +182,7 @@ def handle_message(update, context):
         if gender == 'femn': 
             response = f"Привет, {message_text}. Что бы ты хотела обсудить?"
         else: 
+            # gender is 'masc', 'neut' or None
             response = f"Привет, {message_text}. Что бы ты хотел обсудить?"
     else: 
         response = handle_response(message_text, user_id, context)
