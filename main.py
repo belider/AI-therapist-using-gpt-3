@@ -42,6 +42,7 @@ def get_gender_by_user_name(user_name: str, telegram_name: str):
 
 openai.api_key = os.getenv('OPENAI_API_KEY')
 bot_token = os.getenv('BOT_TOKEN')
+payment_provider_token = os.getenv('PROVIDER_TOKEN')
 
 db = Database()
 
@@ -213,8 +214,19 @@ def handle_message(update, context):
 Однако, она использует дорогие модели искусственного интеллекта, чтобы ответы были максимально полезны. 
 
 Если вы хотите продолжить, вы можете купить еще один пакет на 500 сообщений за $4.99."""
-        buttons = [[InlineKeyboardButton(text="Оплатить", url="https://anybodygo.com/", pay=True)]]
+        buttons = [[InlineKeyboardButton(text="Оплатить 399 RUB", url="https://capu.st/bill5eea560c-e12b")]]
         reply_markup = InlineKeyboardMarkup(buttons)
+        # context.bot.send_invoice(
+        #     chat_id=user_id, 
+        #     title="title", 
+        #     description="description", 
+        #     payload="5", 
+        #     provider_token=payment_provider_token, 
+        #     currency="RUB", 
+        #     prices=[LabeledPrice("label_test", 35000)],
+        #     allow_sending_without_reply=True, 
+        #     reply_markup=reply_markup
+        # )
         update.message.reply_text(response, reply_markup=reply_markup, parse_mode='markdown')
     else: 
         response = handle_response(message_text, user_id, context)
