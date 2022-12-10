@@ -8,7 +8,8 @@ def create_gpt_response(prompt, db, user_id):
     response_candidates_text = []
     try: 
         response = openai.Completion.create(
-            model="text-davinci-003",
+            # model="text-davinci-003",
+            model="text-curie-001", 
             prompt=prompt,
             max_tokens = 1000,
             n = 1,
