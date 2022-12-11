@@ -187,7 +187,7 @@ def create_payment_link(db, user_id, reason, amount, currency) -> str:
         payment_link = response['payUrl']
         print(f'--> payment link created: {payment_link}')
 
-        query = f""" INSERT INTO payments (user_id, amount, currency, status, payment_link, created_at, reason, is_test) 
+        query = f""" INSERT INTO payments (user_id, amount, currency, status, payment_link, created_at, reason, is_test, payment_id) 
                             VALUES ({user_id}, 
                                     {amount}, 
                                     '{currency}', 
@@ -195,7 +195,8 @@ def create_payment_link(db, user_id, reason, amount, currency) -> str:
                                     '{payment_link}', 
                                     TIMESTAMP '{response['created_at']}', 
                                     '{reason}', 
-                                    {is_test}) """
+                                    {is_test},
+                                    '{response['id']}' ) """
         db.execute_insert_query(query)
     except Exception as err: 
         print(err)

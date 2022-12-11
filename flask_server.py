@@ -16,14 +16,11 @@
 
 from flask import Flask, request, jsonify
 import os
-import requests
-
-CAPUSTA_EMAIL = os.getenv('CAPUSTA_EMAIL')
-CAPUSTA_PROJECT_CODE = os.getenv('CAPUSTA_PROJECT_CODE')
-CAPUSTA_TOKEN = os.getenv('CAPUSTA_TOKEN')
+from database_class import Database
 
 
 app = Flask(__name__)
+db = Database()
 
 PORT = int(os.environ.get('PORT', 8080))
 HOST = "0.0.0.0"
@@ -37,11 +34,23 @@ def payment_callback_listener():
     data = request.get_json()
     print(data)
 
-    # TODO update_payment_type
-    # TODO update user_paid_limit
-    # TODO send user message - success or error
+    payment_status = data['status']
+    payment_id = data['id']
 
-    return "success"
+    # update payment status
+    query = f"""UPDATE payments 
+                SET status = '{payment_status}'
+                WHERE payment_id='{payment_id}'; """
+    db.execute_insert_query(query)
+    
+    # TODO send user message - success or error
+    if payment_status == 'SUCCESS': 
+        print(f'payment {payment_id} successfull')
+        # TODO update user_paid_limit
+    elif payment_status == 'FAIL': 
+        print(f'payment {payment_id} error')
+
+    return "OK"
 
 # test curl:
 # curl -X POST http://192.168.1.102:8080/pmt -H "Content-Type: application/json" -d '{"Id": 79, "status": 3}'
