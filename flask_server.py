@@ -1,19 +1,3 @@
-# https://api.telegram.org/bot5680490866:AAGtDiCS_uH27_SEezh-iWLbY4afob_-dog/sendMessage?chat_id=288939647&text=Hello%20World!
-
-# Поднять flask server, который слушает запросы.
-# Передавать callback url в Capusta
-
-# Когда приходит запрос
-# Если статус платежа successs: 
-#     устанавливать статус платежа в payments как success
-#     писать сообщение success
-#     устанавливать новый лимит сообщений
-
-# Если статус платежа error
-#     устанавливать статус платежа в payments как error
-#     писать сообщение error
-
-
 from flask import Flask, request, jsonify
 import os
 from database_class import Database
@@ -44,11 +28,11 @@ def payment_callback_listener():
     print(data)
 
     payment_status = data['status']
-    payment_id = data['payment_id']
+    payment_id = data['invoiceId']
 
     # update payment status
     query = f"""UPDATE payments 
-                SET status = '{payment_status}'
+                SET status='{payment_status}'
                 WHERE payment_id='{payment_id}'; """
     db.execute_insert_query(query)
     
@@ -57,10 +41,10 @@ def payment_callback_listener():
     if payment_status == 'SUCCESS': 
         message = f'payment {payment_id} successfull'
         # update user paid limit
-        # query = f"""UPDATE payments 
-        #         SET status = '{payment_status}'
-        #         WHERE payment_id='{payment_id}'; """
-        # db.execute_insert_query(query)
+        query = f"""UPDATE user_paid_limits 
+                SET paid_messages = paid_messages + 500
+                WHERE payment_id='{payment_id}'; """
+        db.execute_insert_query(query)
     elif payment_status == 'FAIL': 
         message = f'payment {payment_id} error'
     
