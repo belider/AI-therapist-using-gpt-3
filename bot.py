@@ -22,7 +22,6 @@ CAPUSTA_TOKEN = os.getenv('CAPUSTA_TOKEN')
 
 openai.api_key = os.getenv('OPENAI_API_KEY')
 bot_token = os.getenv('BOT_TOKEN')
-payment_provider_token = os.getenv('PROVIDER_TOKEN')
 
 db = Database()
 
@@ -112,6 +111,24 @@ def start_command(update, context):
 
     update.message.reply_text(reply_text, reply_markup=reply_markup)
 
+TRIAL_ENDED_RESPONSE = """_Сообщение от команды бота: _
+
+Ваш бесплатный лимит на {paid_limit} сообщений истек. 
+
+Мы стремились сделать Софи как можно более доступным и простым способом психологической поддержки. 
+Однако, она использует дорогие модели искусственного интеллекта, чтобы ответы были максимально полезны. 
+
+Если вы хотите продолжить, вы можете купить пакет на 500 сообщений за 399 руб."""
+
+PAID_PERIOD_ENDED_RESPONSE = """_Сообщение от команды бота: _
+
+Ваш лимит на {paid_limit} сообщений истек. 
+
+Мы стремились сделать Софи как можно более доступным и простым способом психологической поддержки. 
+Однако, она использует дорогие модели искусственного интеллекта, чтобы ответы были максимально полезны. 
+
+Если вы хотите продолжить, вы можете купить еще один пакет на 500 сообщений за 399 руб."""
+
 def newsession_command(update, context):
     current_dt = datetime.now()
     message_dt = update.message.date
@@ -125,22 +142,40 @@ def newsession_command(update, context):
 
     user_name = get_username_by_userid(db, user_id)
 
-    # constructing prompt
-    prompt_starter = 'Ниже приводится беседа с когнитивно-поведенческим терапевтом.\n\n'
-    prompt = prompt_starter + 'Терапевт: Привет, меня зовут Софи. Как я могу к тебе обращаться?\n' + f'Я: {user_name}\n\n' + 'Терапевт:'
-    print(f'--> prompt: {prompt}')
+    (paid_limit, paid_limit_status) = get_paid_limit_and_status_by_user(db, user_id)
 
-    
-    response_candidates_text = create_gpt_response(prompt, db, user_id)
-    final_response_text = response_candidates_text[0]
+    if paid_limit_status == 'trial ended': 
+        print('User messages limit has ended.')
+        payment_link = create_payment_link(db, user_id, reason=paid_limit_status, amount=399, currency="RUB")
+        # send monetization message
+        response = TRIAL_ENDED_RESPONSE.format(paid_limit=paid_limit)
+        buttons = [[InlineKeyboardButton(text="Оплатить 399 RUB", url=payment_link)]]
+        reply_markup = InlineKeyboardMarkup(buttons)
+        update.message.reply_text(response, reply_markup=reply_markup, parse_mode='markdown')
+    elif paid_limit_status == 'paid plan ended': 
+        # send monetization message
+        payment_link = create_payment_link(db, user_id, reason=paid_limit_status, amount=399, currency="RUB")
+        response = PAID_PERIOD_ENDED_RESPONSE.format(paid_limit=paid_limit)
+        buttons = [[InlineKeyboardButton(text="Оплатить 399 RUB", url=payment_link)]]
+        reply_markup = InlineKeyboardMarkup(buttons)
+        update.message.reply_text(response, reply_markup=reply_markup, parse_mode='markdown')
+    else: 
+        # constructing prompt
+        prompt_starter = 'Ниже приводится беседа с когнитивно-поведенческим терапевтом.\n\n'
+        prompt = prompt_starter + 'Терапевт: Привет, меня зовут Софи. Как я могу к тебе обращаться?\n' + f'Я: {user_name}\n\n' + 'Терапевт:'
+        print(f'--> prompt: {prompt}')
 
-    print(f'--> response_text: {final_response_text}')
-    update.message.reply_text(final_response_text)
+        
+        response_candidates_text = create_gpt_response(prompt, db, user_id)
+        final_response_text = response_candidates_text[0]
 
-    response_time_delta = datetime.now() - current_dt
+        print(f'--> response_text: {final_response_text}')
+        update.message.reply_text(final_response_text)
 
-    #saving reply message to DB
-    insert_message_in_db(db, user_id, is_bot=True, message_text=final_response_text, message_timestamp=message_dt + response_time_delta)
+        response_time_delta = datetime.now() - current_dt
+
+        #saving reply message to DB
+        insert_message_in_db(db, user_id, is_bot=True, message_text=final_response_text, message_timestamp=message_dt + response_time_delta)
 
 
 def handle_response(text: str, user_id, context) -> str: 
@@ -247,40 +282,26 @@ def handle_message(update, context):
         print('User messages limit has ended.')
         payment_link = create_payment_link(db, user_id, reason=paid_limit_status, amount=399, currency="RUB")
         # send monetization message
-        response = f"""_Сообщение от команды бота: _
-
-Ваш бесплатный лимит на {paid_limit} сообщений истек. 
-
-Мы стремились сделать Софи как можно более доступным и простым способом психологической поддержки. 
-Однако, она использует дорогие модели искусственного интеллекта, чтобы ответы были максимально полезны. 
-
-Если вы хотите продолжить, вы можете купить пакет на 500 сообщений за 399 руб."""
+        response = TRIAL_ENDED_RESPONSE.format(paid_limit=paid_limit)
         buttons = [[InlineKeyboardButton(text="Оплатить 399 RUB", url=payment_link)]]
         reply_markup = InlineKeyboardMarkup(buttons)
         update.message.reply_text(response, reply_markup=reply_markup, parse_mode='markdown')
     elif paid_limit_status == 'paid plan ended': 
         # send monetization message
         payment_link = create_payment_link(db, user_id, reason=paid_limit_status, amount=399, currency="RUB")
-        response = f"""_Сообщение от команды бота: _
-
-Ваш лимит на {paid_limit} сообщений истек. 
-
-Мы стремились сделать Софи как можно более доступным и простым способом психологической поддержки. 
-Однако, она использует дорогие модели искусственного интеллекта, чтобы ответы были максимально полезны. 
-
-Если вы хотите продолжить, вы можете купить еще один пакет на 500 сообщений за 399 руб."""
+        response = PAID_PERIOD_ENDED_RESPONSE.format(paid_limit=paid_limit)
         buttons = [[InlineKeyboardButton(text="Оплатить 399 RUB", url=payment_link)]]
         reply_markup = InlineKeyboardMarkup(buttons)
         update.message.reply_text(response, reply_markup=reply_markup, parse_mode='markdown')
     else: 
         response = handle_response(message_text, user_id, context)
         update.message.reply_text(response)
-
-    response_time_delta = datetime.now() - current_dt
-    print(f'Response time: {response_time_delta}')
-    
-    #saving gpt response to DB
-    insert_message_in_db(db, user_id, is_bot=True, message_text=response, message_timestamp=message_dt + response_time_delta)
+        
+        response_time_delta = datetime.now() - current_dt
+        print(f'Response time: {response_time_delta}')
+        
+        #saving gpt response to DB
+        insert_message_in_db(db, user_id, is_bot=True, message_text=response, message_timestamp=message_dt + response_time_delta)
 
 def error(update, context): 
     print(f'Update: \n{update}\nCaused error: {context.error}')
