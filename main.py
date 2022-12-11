@@ -9,6 +9,7 @@ import time
 from gpt_wrapper import *
 from database_logic import *
 from database_class import Database
+from payment_callback_listener import *
 
 import pymorphy2
 morph = pymorphy2.MorphAnalyzer()
@@ -156,6 +157,8 @@ def handle_response(text: str, user_id, context) -> str:
 
 def handle_message(update, context):
     message_text = str(update.message.text).strip() 
+    # message_text = translator.translate(message_text_ru, dest='en').text
+
     user_id = update.message.chat.id
     message_dt = update.message.date
     user_tg_nick = update.message.from_user.username
@@ -259,3 +262,9 @@ if __name__ == '__main__':
     #run bot
     updater.start_polling(0.5)
     updater.idle()
+
+    app.run(
+        host=HOST,
+        port=PORT,
+        debug=True
+    )
