@@ -183,20 +183,24 @@ def create_payment_link(db, user_id, reason, amount, currency) -> str:
 
     response = requests.request("POST", url, json=payload, headers=headers).json()
 
-    payment_link = response['payUrl']
-    print(f'--> payment link created: {payment_link}')
+    try:
+        payment_link = response['payUrl']
+        print(f'--> payment link created: {payment_link}')
 
-    query = f""" INSERT INTO payments (user_id, amount, currency, status, payment_link, created_at, reason, is_test) 
-                        VALUES ({user_id}, 
-                                {amount}, 
-                                '{currency}', 
-                                '{response['status']}', 
-                                '{payment_link}', 
-                                TIMESTAMP '{response['created_at']}', 
-                                '{reason}', 
-                                {is_test}) """
-    db.execute_insert_query(query)
-    
+        query = f""" INSERT INTO payments (user_id, amount, currency, status, payment_link, created_at, reason, is_test) 
+                            VALUES ({user_id}, 
+                                    {amount}, 
+                                    '{currency}', 
+                                    '{response['status']}', 
+                                    '{payment_link}', 
+                                    TIMESTAMP '{response['created_at']}', 
+                                    '{reason}', 
+                                    {is_test}) """
+        db.execute_insert_query(query)
+    except Exception as err: 
+        print(err)
+        print(f'--> Capusta response: {response}')
+        payment_link = 'https://www.google.com/'
     return payment_link
 
 
