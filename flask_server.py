@@ -10,7 +10,7 @@
 #     устанавливать новый лимит сообщений
 
 # Если статус платежа error
-#     устанавливать статус платежа в payments как success
+#     устанавливать статус платежа в payments как error
 #     писать сообщение error
 
 
@@ -47,42 +47,9 @@ def payment_callback_listener():
 # curl -X POST http://192.168.1.102:8080/pmt -H "Content-Type: application/json" -d '{"Id": 79, "status": 3}'
 # curl -X POST https://worker-production-9383.up.railway.app/pmt -H "Content-Type: application/json" -d '{"Id": 79, "status": 3}'
 
-def create_payment_link(db, user_id, reason, amount, currency) -> str: 
-    is_test = True
-    url = 'https://api.capusta.space/v1/partner/payment'
-    # bill_id = '5eea560c-e12b'
-    
-    payload = {
-        'projectCode': CAPUSTA_PROJECT_CODE,
-        'amount': {
-            'currency': currency,
-            'amount': amount*100
-        },
-        'description': '500 сообщений для AI therapist bot', 
-        "custom": {
-                "user_id": user_id
-        },
-        "test": is_test
-    }
-
-    headers = {
-        'Authorization': f'Bearer {CAPUSTA_EMAIL}:{CAPUSTA_TOKEN}',
-    }
-
-    response = requests.request("POST", url, json=payload, headers=headers).json()
-    
-    payment_link = response['payUrl']
-    print(f'--> payment link created: {payment_link}')
-
-    query = f""" INSERT INTO payments (user_id, amount, currency, status, payment_link, created_at, reason, is_test) 
-                        VALUES ({user_id}, 
-                                {amount}, 
-                                '{currency}', 
-                                '{response['status']}', 
-                                '{payment_link}', 
-                                TIMESTAMP '{response['created_at']}', 
-                                '{reason}', 
-                                {is_test}) """
-    db.execute_insert_query(query)
-    
-    return payment_link
+if __name__ == '__main__':
+    app.run(
+        host=HOST,
+        port=PORT,
+        debug=True
+    )
