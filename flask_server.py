@@ -39,16 +39,21 @@ def payment_callback_listener():
     user_id = data['custom']['user_id']
 
     if payment_status == 'SUCCESS': 
-        message = f'payment {payment_id} successfull'
+        log_message = f'payment {payment_id} successfull'
+        user_message = """Оплата прошла успешна. 
+Вы можете продолжить общение 😊\n
+/newsession - команда, чтобы начать разговор"""
+        
         # update user paid limit
         query = f"""UPDATE user_paid_limits 
                 SET paid_messages = paid_messages + 500
-                WHERE payment_id='{payment_id}'; """
+                WHERE user_id='{user_id}'; """
         db.execute_insert_query(query)
     elif payment_status == 'FAIL': 
-        message = f'payment {payment_id} error'
+        log_message = f'payment {payment_id} error'
+        message = "К сожалению оплата не прошла, деньги не списались. \nПопробуйте оплатить еще раз по той же ссылке. "
     
-    print(message)
+    print(log_message)
     send_message_in_bot(user_id, message)
 
     return "OK"
