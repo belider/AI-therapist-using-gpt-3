@@ -22,6 +22,10 @@ app = Flask(__name__)
 PORT = int(os.environ.get('PORT', 8080))
 HOST = "0.0.0.0"
 
+@app.route('/', methods=['GET'])
+def test_url(): 
+    return "Hello world"
+
 @app.route('/pmt', methods=['POST'])
 def payment_callback_listener():
     data = request.get_json()
@@ -30,3 +34,4 @@ def payment_callback_listener():
 
 # test curl:
 # curl -X POST http://192.168.1.102:8080/pmt -H "Content-Type: application/json" -d '{"Id": 79, "status": 3}'
+# curl -X POST https://worker-production-9383.up.railway.app/pmt -H "Content-Type: application/json" -d '{"Id": 79, "status": 3}'

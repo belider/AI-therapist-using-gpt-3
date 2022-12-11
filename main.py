@@ -245,6 +245,12 @@ def error(update, context):
     print(f'Update: \n{update}\nCaused error: {context.error}')
  
 if __name__ == '__main__':
+    app.run(
+        host=HOST,
+        port=PORT,
+        debug=True
+    )
+
     updater = Updater(bot_token, use_context=True)
     dp = updater.dispatcher
     
@@ -262,9 +268,3 @@ if __name__ == '__main__':
     #run bot
     updater.start_polling(0.5)
     updater.idle()
-
-    app.run(
-        host=HOST,
-        port=PORT,
-        debug=True
-    )
