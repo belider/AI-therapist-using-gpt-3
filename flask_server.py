@@ -17,6 +17,7 @@
 from flask import Flask, request, jsonify
 import os
 from database_class import Database
+import requests
 
 
 app = Flask(__name__)
@@ -24,6 +25,14 @@ db = Database()
 
 PORT = int(os.environ.get('PORT', 8080))
 HOST = "0.0.0.0"
+BOT_TOKEN = os.getenv('BOT_TOKEN')
+
+def send_message_in_bot(user_id, text): 
+    response = requests.post(
+        url=f'https://api.telegram.org/bot{BOT_TOKEN}/sendMessage',
+        data={'chat_id': user_id, 'text': text}
+    ).json()
+    return response
 
 @app.route('/', methods=['GET'])
 def test_url(): 
@@ -43,12 +52,17 @@ def payment_callback_listener():
                 WHERE payment_id='{payment_id}'; """
     db.execute_insert_query(query)
     
+    user_id = data['custom']['user_id']
+
     # TODO send user message - success or error
     if payment_status == 'SUCCESS': 
-        print(f'payment {payment_id} successfull')
+        message = f'payment {payment_id} successfull'
         # TODO update user_paid_limit
     elif payment_status == 'FAIL': 
-        print(f'payment {payment_id} error')
+        message = f'payment {payment_id} error'
+    
+    print(message)
+    send_message_in_bot(user_id, message)
 
     return "OK"
 
