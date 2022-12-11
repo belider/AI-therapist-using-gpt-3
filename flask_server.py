@@ -51,10 +51,10 @@ def payment_callback_listener():
         db.execute_insert_query(query)
     elif payment_status == 'FAIL': 
         log_message = f'payment {payment_id} error'
-        message = "К сожалению оплата не прошла, деньги не списались. \nПопробуйте оплатить еще раз по той же ссылке. "
+        user_message = "К сожалению оплата не прошла, деньги не списались. \nПопробуйте оплатить еще раз по той же ссылке. "
     
     print(log_message)
-    send_message_in_bot(user_id, message)
+    send_message_in_bot(user_id, user_message)
 
     return "OK"
 
