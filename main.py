@@ -9,7 +9,7 @@ import time
 from gpt_wrapper import *
 from database_logic import *
 from database_class import Database
-from payment_callback_listener import *
+from payments_handler import *
 
 import pymorphy2
 morph = pymorphy2.MorphAnalyzer()
@@ -165,6 +165,8 @@ def handle_message(update, context):
     user_tg_name = str(update.message.from_user.first_name) + ' ' + str(update.message.from_user.last_name)
     user_tg_name = user_tg_name.replace('None', '').strip()
 
+    (paid_limit, paid_limit_status) = get_paid_limit_and_status_by_user(db, user_id)
+
     # "Sofi is typing..." animation
     context.bot.send_chat_action(chat_id=user_id, action=ChatAction.TYPING)
 
@@ -191,10 +193,9 @@ def handle_message(update, context):
             # gender is 'masc', 'neut' or None
             response = f"Привет, {message_text}. Что бы ты хотел обсудить?"
         update.message.reply_text(response)
-    
-    (paid_limit, paid_limit_status) = get_paid_limit_and_status_by_user(db, user_id)
-    if paid_limit_status == 'trial ended': 
+    elif paid_limit_status == 'trial ended': 
         print('User messages limit has ended.')
+        payment_link = create_payment_link(db, user_id, reason=paid_limit_status, amount=399, currency="RUB")
         # send monetization message
         response = f"""_Сообщение от команды бота: _
 
@@ -203,12 +204,13 @@ def handle_message(update, context):
 Мы стремились сделать Софи как можно более доступным и простым способом психологической поддержки. 
 Однако, она использует дорогие модели искусственного интеллекта, чтобы ответы были максимально полезны. 
 
-Если вы хотите продолжить, вы можете купить пакет на 500 сообщений за $4.99."""
-        buttons = [[InlineKeyboardButton(text="Оплатить", url="https://anybodygo.com/", pay=True)]]
+Если вы хотите продолжить, вы можете купить пакет на 500 сообщений за 399 руб."""
+        buttons = [[InlineKeyboardButton(text="Оплатить 399 RUB", url=payment_link)]]
         reply_markup = InlineKeyboardMarkup(buttons)
         update.message.reply_text(response, reply_markup=reply_markup, parse_mode='markdown')
     elif paid_limit_status == 'paid plan ended': 
         # send monetization message
+        payment_link = create_payment_link(db, user_id, reason=paid_limit_status, amount=399, currency="RUB")
         response = f"""_Сообщение от команды бота: _
 
 Ваш лимит на {paid_limit} сообщений истек. 
@@ -216,20 +218,9 @@ def handle_message(update, context):
 Мы стремились сделать Софи как можно более доступным и простым способом психологической поддержки. 
 Однако, она использует дорогие модели искусственного интеллекта, чтобы ответы были максимально полезны. 
 
-Если вы хотите продолжить, вы можете купить еще один пакет на 500 сообщений за $4.99."""
-        buttons = [[InlineKeyboardButton(text="Оплатить 399 RUB", url="https://capu.st/bill5eea560c-e12b")]]
+Если вы хотите продолжить, вы можете купить еще один пакет на 500 сообщений за 399 руб."""
+        buttons = [[InlineKeyboardButton(text="Оплатить 399 RUB", url=payment_link)]]
         reply_markup = InlineKeyboardMarkup(buttons)
-        # context.bot.send_invoice(
-        #     chat_id=user_id, 
-        #     title="title", 
-        #     description="description", 
-        #     payload="5", 
-        #     provider_token=payment_provider_token, 
-        #     currency="RUB", 
-        #     prices=[LabeledPrice("label_test", 35000)],
-        #     allow_sending_without_reply=True, 
-        #     reply_markup=reply_markup
-        # )
         update.message.reply_text(response, reply_markup=reply_markup, parse_mode='markdown')
     else: 
         response = handle_response(message_text, user_id, context)
@@ -245,11 +236,11 @@ def error(update, context):
     print(f'Update: \n{update}\nCaused error: {context.error}')
  
 if __name__ == '__main__':
-    app.run(
-        host=HOST,
-        port=PORT,
-        debug=True
-    )
+    # app.run(
+    #     host=HOST,
+    #     port=PORT,
+    #     debug=True
+    # )
 
     updater = Updater(bot_token, use_context=True)
     dp = updater.dispatcher
