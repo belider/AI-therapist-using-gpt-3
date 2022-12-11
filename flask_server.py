@@ -44,7 +44,7 @@ def payment_callback_listener():
     print(data)
 
     payment_status = data['status']
-    payment_id = data['id']
+    payment_id = data['payment_id']
 
     # update payment status
     query = f"""UPDATE payments 
@@ -54,10 +54,13 @@ def payment_callback_listener():
     
     user_id = data['custom']['user_id']
 
-    # TODO send user message - success or error
     if payment_status == 'SUCCESS': 
         message = f'payment {payment_id} successfull'
-        # TODO update user_paid_limit
+        # update user paid limit
+        # query = f"""UPDATE payments 
+        #         SET status = '{payment_status}'
+        #         WHERE payment_id='{payment_id}'; """
+        # db.execute_insert_query(query)
     elif payment_status == 'FAIL': 
         message = f'payment {payment_id} error'
     
