@@ -16,6 +16,7 @@ import pymorphy2
 morph = pymorphy2.MorphAnalyzer()
 from googletrans import Translator
 translator = Translator()
+from translate import *
 
 CAPUSTA_EMAIL = os.getenv('CAPUSTA_EMAIL')
 CAPUSTA_PROJECT_CODE = os.getenv('CAPUSTA_PROJECT_CODE')
@@ -51,44 +52,6 @@ def get_gender_by_user_name(user_name: str, telegram_name: str):
                 gender = g
     return gender
 
-def informalize_russian_text(text, is_bot=True, user_gender="masc"):
-    text = re.sub(r'здравствуйте ', 'привет ', text)
-    text = re.sub(r'Здравствуйте ', 'Привет ', text)
-    text = re.sub(r' вы ', ' ты ', text)
-    text = re.sub(r' Вы ', ' Ты ', text)
-    text = re.sub(r' вам ', ' тебе ', text)
-    text = re.sub(r' Вам ', ' Тебе ', text)
-    text = re.sub(r' вас ', ' тебя ', text)
-    text = re.sub(r' Вас ', ' Тебя ', text)
-    text = re.sub(r'ете.? ', 'ешь ', text)
-    text = re.sub(r'тели.? ', 'чешь ', text)
-    text = re.sub(r'ите.? ', 'и ', text)
-    text = re.sub(r' вашей ', ' твоей ', text)
-    text = re.sub(r' Вашей ', ' Твоей ', text)
-    text = re.sub(r' ваших ', ' твоих ', text)
-    text = re.sub(r' Ваших ', ' Твоих ', text)
-    text = re.sub(r' вашу ', ' твою ', text)
-    text = re.sub(r' Вашу ', ' твою ', text)
-
-    if user_gender == "masc" and is_bot == True:
-        text = re.sub(r'лили.?  ', 'лил ', text)
-        text = re.sub(r'жны.? ', 'жен ', text)
-        text = re.sub(r'али.? ', 'ал ', text)
-        text = re.sub(r'гли.? ', 'г ', text)
-        text = re.sub(r'лись.? ', 'лся ', text)
-    if user_gender == "femn" and is_bot == True:
-        text = re.sub(r'лили.?  ', 'лила ', text)
-        text = re.sub(r'жны.? ', 'жна ', text)
-        text = re.sub(r'али.? ', 'ала ', text)
-        text = re.sub(r'гли.? ', 'гла ', text)
-        text = re.sub(r'лись.? ', 'лась ', text)
-        text = re.sub(r' мог ', ' могла ', text)
-        text = re.sub(r' Мог ', ' Могла ', text)
-    
-    if is_bot == True: 
-        text = re.sub(r'Я рад ', 'Я рада ', text)
-    return text
-
 print('starting up a bot...')     
 
 def query_handler(update, context): 
@@ -119,7 +82,7 @@ def query_handler(update, context):
         query.delete_message()
         time.sleep(0.5)
 
-        response_text_ru = "Меня зовут Софи. Как я могу к тебе обращаться?"
+        response_text_ru = "Меня зовут Софи. Как я могу к вам обращаться?"
         response_text_eng = "My name is Sophie. How can I call you?"
         query.message.reply_text(response_text_ru)
     
@@ -208,8 +171,8 @@ def newsession_command(update, context):
         response_candidates_text = create_gpt_response(prompt, db, user_id)
         response_eng = str(response_candidates_text[0])
 
-        response_ru = translator.translate(response_eng, dest='ru').text
-        response_ru = informalize_russian_text(response_ru, is_bot=True, user_gender=user_gender)
+        # response_ru = translator.translate(response_eng, dest='ru').text
+        response_ru = translate_using_available_translator(text=response_eng, target_lang='ru')
 
         print(f'--> response_text: {response_ru}')
         update.message.reply_text(response_ru)
@@ -314,12 +277,8 @@ def handle_message(update, context):
         print(f'user gender: {gender}')
         # saving user name and gender to DB
         set_or_update_username(db, user_id, message_text_ru, user_tg_nick, user_tg_name, gender)
-
-        if gender == 'femn': 
-            response = f"Привет, {message_text_ru}. Что бы ты хотела обсудить?"
-        else: 
-            # gender is 'masc', 'neut' or None
-            response = f"Привет, {message_text_ru}. Что бы ты хотел обсудить?"
+        
+        response = f"{message_text_ru}, очень приятно. Что бы вы хотели обсудить?"
         update.message.reply_text(response)
         
         response_eng = f"Hi, {message_text_ru}. What would you like to discuss?"
@@ -348,8 +307,8 @@ def handle_message(update, context):
             response_eng = translator.translate(response, dest='en').text
         elif lang == 'eng': 
             response_eng = response
-            response_ru = translator.translate(response, dest='ru').text
-            response_ru = informalize_russian_text(response_ru, is_bot=True, user_gender=user_gender)
+            # response_ru = translator.translate(response, dest='ru').text
+            response_ru = translate_using_available_translator(text=response, target_lang='ru')
 
         update.message.reply_text(response_ru)
         
