@@ -225,8 +225,7 @@ def create_payment_link(db, user_id, reason, amount, currency) -> str:
         'description': '500 сообщений для AI therapist bot', 
         "custom": {
                 "user_id": user_id
-        },
-        "test": is_test
+        }
     }
 
     headers = {

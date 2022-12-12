@@ -2,7 +2,7 @@ from flask import Flask, request, jsonify
 import os
 from database_class import Database
 import requests
-
+from waitress import serve
 
 app = Flask(__name__)
 db = Database()
@@ -63,8 +63,12 @@ def payment_callback_listener():
 # curl -X POST https://worker-production-9383.up.railway.app/pmt -H "Content-Type: application/json" -d '{"Id": 79, "status": 3}'
 
 if __name__ == '__main__':
-    app.run(
-        host=HOST,
-        port=PORT,
-        debug=True
-    )
+    # running in development env
+    # app.run(
+    #     host=HOST,
+    #     port=PORT, 
+    #     debug=True
+    # )
+
+    # running in production env
+    serve(app, host=HOST, port=PORT)
