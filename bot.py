@@ -6,6 +6,7 @@ from telegram.ext import *
 from telegram import *
 import time
 import requests
+import re
 
 from gpt_wrapper import *
 from database_logic import *
@@ -50,6 +51,44 @@ def get_gender_by_user_name(user_name: str, telegram_name: str):
                 gender = g
     return gender
 
+def informalize_russian_text(text, is_bot=True, user_gender="masc"):
+    text = re.sub(r'здравствуйте ', 'привет ', text)
+    text = re.sub(r'Здравствуйте ', 'Привет ', text)
+    text = re.sub(r' вы ', ' ты ', text)
+    text = re.sub(r' Вы ', ' Ты ', text)
+    text = re.sub(r' вам ', ' тебе ', text)
+    text = re.sub(r' Вам ', ' Тебе ', text)
+    text = re.sub(r' вас ', ' тебя ', text)
+    text = re.sub(r' Вас ', ' Тебя ', text)
+    text = re.sub(r'ете.? ', 'ешь ', text)
+    text = re.sub(r'тели.? ', 'чешь ', text)
+    text = re.sub(r'ите.? ', 'и ', text)
+    text = re.sub(r' вашей ', ' твоей ', text)
+    text = re.sub(r' Вашей ', ' Твоей ', text)
+    text = re.sub(r' ваших ', ' твоих ', text)
+    text = re.sub(r' Ваших ', ' Твоих ', text)
+    text = re.sub(r' вашу ', ' твою ', text)
+    text = re.sub(r' Вашу ', ' твою ', text)
+
+    if user_gender == "masc" and is_bot == True:
+        text = re.sub(r'лили.?  ', 'лил ', text)
+        text = re.sub(r'жны.? ', 'жен ', text)
+        text = re.sub(r'али.? ', 'ал ', text)
+        text = re.sub(r'гли.? ', 'г ', text)
+        text = re.sub(r'лись.? ', 'лся ', text)
+    if user_gender == "femn" and is_bot == True:
+        text = re.sub(r'лили.?  ', 'лила ', text)
+        text = re.sub(r'жны.? ', 'жна ', text)
+        text = re.sub(r'али.? ', 'ала ', text)
+        text = re.sub(r'гли.? ', 'гла ', text)
+        text = re.sub(r'лись.? ', 'лась ', text)
+        text = re.sub(r' мог ', ' могла ', text)
+        text = re.sub(r' Мог ', ' Могла ', text)
+    
+    if is_bot == True: 
+        text = re.sub(r'Я рад ', 'Я рада ', text)
+    return text
+
 print('starting up a bot...')     
 
 def query_handler(update, context): 
@@ -80,13 +119,14 @@ def query_handler(update, context):
         query.delete_message()
         time.sleep(0.5)
 
-        response_text = "Меня зовут Софи. Как я могу к тебе обращаться?"
-        query.message.reply_text(response_text)
+        response_text_ru = "Меня зовут Софи. Как я могу к тебе обращаться?"
+        response_text_eng = "My name is Sophie. How can I call you?"
+        query.message.reply_text(response_text_ru)
     
         response_time_delta = datetime.now() - current_dt
 
-        #saving reply message to DB
-        insert_message_in_db(db, user_id, is_bot=True, message_text=response_text, message_timestamp=message_dt + response_time_delta)
+        #saving eng reply message to DB
+        insert_message_in_db(db, user_id, is_bot=True, message_text=response_text_eng, message_timestamp=message_dt + response_time_delta)
 
 def start_command(update, context):
     message_dt = update.message.date
@@ -140,7 +180,7 @@ def newsession_command(update, context):
     # saving /newsession message to DB
     insert_message_in_db(db, user_id, is_bot=False, message_text=update.message.text.strip(), message_timestamp=update.message.date)
 
-    user_name = get_username_by_userid(db, user_id)
+    (user_name, user_gender) = get_username_and_gender_by_userid(db, user_id)
 
     (paid_limit, paid_limit_status) = get_paid_limit_and_status_by_user(db, user_id)
 
@@ -161,21 +201,23 @@ def newsession_command(update, context):
         update.message.reply_text(response, reply_markup=reply_markup, parse_mode='markdown')
     else: 
         # constructing prompt
-        prompt_starter = 'Ниже приводится беседа с когнитивно-поведенческим терапевтом.\n\n'
-        prompt = prompt_starter + 'Терапевт: Привет, меня зовут Софи. Как я могу к тебе обращаться?\n' + f'Я: {user_name}\n\n' + 'Терапевт:'
+        prompt_starter = 'The following is a conversation with a cognitive behavioral therapist.\n\n'
+        prompt = prompt_starter + 'Therapist: Hello, my name is Sophie. How can I call you?\n' + f'Me: {user_name}\n\n' + 'Therapist:'
         print(f'--> prompt: {prompt}')
 
-        
         response_candidates_text = create_gpt_response(prompt, db, user_id)
-        final_response_text = response_candidates_text[0]
+        response_eng = str(response_candidates_text[0])
 
-        print(f'--> response_text: {final_response_text}')
-        update.message.reply_text(final_response_text)
+        response_ru = translator.translate(response_eng, dest='ru').text
+        response_ru = informalize_russian_text(response_ru, is_bot=True, user_gender=user_gender)
+
+        print(f'--> response_text: {response_ru}')
+        update.message.reply_text(response_ru)
 
         response_time_delta = datetime.now() - current_dt
 
         #saving reply message to DB
-        insert_message_in_db(db, user_id, is_bot=True, message_text=final_response_text, message_timestamp=message_dt + response_time_delta)
+        insert_message_in_db(db, user_id, is_bot=True, message_text=response_eng, message_timestamp=message_dt + response_time_delta)
 
 
 def handle_response(text: str, user_id, context) -> str: 
@@ -186,7 +228,7 @@ def handle_response(text: str, user_id, context) -> str:
     messages_from_last_command = get_messages_from_last_user_command(db, user_id)
 
     # getting user name
-    user_name = get_username_by_userid(db, user_id)
+    (user_name, user_gender) = get_username_and_gender_by_userid(db, user_id)
     
     prompt = construct_prompt_from_messages_history(messages_from_last_command, user_name)
     
@@ -241,14 +283,15 @@ def create_payment_link(db, user_id, reason, amount, currency) -> str:
 
 
 def handle_message(update, context):
-    message_text = str(update.message.text).strip() 
-    # message_text = translator.translate(message_text_ru, dest='en').text
+    message_text_ru = str(update.message.text).strip() 
+    message_text_eng = translator.translate(message_text_ru, dest='en').text
 
     user_id = update.message.chat.id
     message_dt = update.message.date
     user_tg_nick = update.message.from_user.username
     user_tg_name = str(update.message.from_user.first_name) + ' ' + str(update.message.from_user.last_name)
     user_tg_name = user_tg_name.replace('None', '').strip()
+    (user_name, user_gender) = get_username_and_gender_by_userid(db, user_id)
 
     (paid_limit, paid_limit_status) = get_paid_limit_and_status_by_user(db, user_id)
 
@@ -258,26 +301,30 @@ def handle_message(update, context):
     current_dt = datetime.now()
     last_user_message = get_last_user_message(db, user_id)
 
-    print(f'User {user_id} says "{message_text}" <- at {message_dt}')
+    print(f'User {user_id} says "{message_text_eng}" <- at {message_dt}')
     # saving user message to DB
-    insert_message_in_db(db, user_id, is_bot=False, message_text=message_text, message_timestamp=message_dt)
+    insert_message_in_db(db, user_id, is_bot=False, message_text=message_text_eng, message_timestamp=message_dt)
 
     # checking if this was a reply to Welcome message
     print("==> last_user_message: ", last_user_message)
     if last_user_message == '/start': 
         # then current message is the user's Name
 
-        gender = get_gender_by_user_name(user_name=message_text, telegram_name=user_tg_name)
+        gender = get_gender_by_user_name(user_name=message_text_ru, telegram_name=user_tg_name)
         print(f'user gender: {gender}')
         # saving user name and gender to DB
-        set_or_update_username(db, user_id, message_text, user_tg_nick, user_tg_name, gender)
+        set_or_update_username(db, user_id, message_text_ru, user_tg_nick, user_tg_name, gender)
 
         if gender == 'femn': 
-            response = f"Привет, {message_text}. Что бы ты хотела обсудить?"
+            response = f"Привет, {message_text_ru}. Что бы ты хотела обсудить?"
         else: 
             # gender is 'masc', 'neut' or None
-            response = f"Привет, {message_text}. Что бы ты хотел обсудить?"
+            response = f"Привет, {message_text_ru}. Что бы ты хотел обсудить?"
         update.message.reply_text(response)
+        
+        response_eng = f"Hi, {message_text_ru}. What would you like to discuss?"
+        response_time_delta = datetime.now() - current_dt
+        insert_message_in_db(db, user_id, is_bot=True, message_text=response_eng, message_timestamp=message_dt + response_time_delta)
     elif paid_limit_status == 'trial ended': 
         print('User messages limit has ended.')
         payment_link = create_payment_link(db, user_id, reason=paid_limit_status, amount=399, currency="RUB")
@@ -294,14 +341,23 @@ def handle_message(update, context):
         reply_markup = InlineKeyboardMarkup(buttons)
         update.message.reply_text(response, reply_markup=reply_markup, parse_mode='markdown')
     else: 
-        response = handle_response(message_text, user_id, context)
-        update.message.reply_text(response)
+        (response, lang) = handle_response(message_text_eng, user_id, context)
+        
+        if lang == 'rus': 
+            response_ru = response
+            response_eng = translator.translate(response, dest='en').text
+        elif lang == 'eng': 
+            response_eng = response
+            response_ru = translator.translate(response, dest='ru').text
+            response_ru = informalize_russian_text(response_ru, is_bot=True, user_gender=user_gender)
+
+        update.message.reply_text(response_ru)
         
         response_time_delta = datetime.now() - current_dt
         print(f'Response time: {response_time_delta}')
         
         #saving gpt response to DB
-        insert_message_in_db(db, user_id, is_bot=True, message_text=response, message_timestamp=message_dt + response_time_delta)
+        insert_message_in_db(db, user_id, is_bot=True, message_text=response_eng, message_timestamp=message_dt + response_time_delta)
 
 def error(update, context): 
     print(f'Update: \n{update}\nCaused error: {context.error}')

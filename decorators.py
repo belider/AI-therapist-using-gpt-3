@@ -1,5 +1,6 @@
 import psycopg2
 import sys
+import inspect
 
 def print_postgre_exception(func): 
     def wraped_func(db, *args, **kwargs): 
@@ -14,6 +15,7 @@ def print_postgre_exception(func):
             line_num = traceback.tb_lineno
             # print the connect() error
             print ("\npsycopg2 ERROR:", err, "on line number:", line_num)
+            print(f'error occured in func: {inspect.stack()[0][3]}', f', caller: {inspect.stack()[1][3]}')
             print ("psycopg2 traceback:", traceback, "-- type:", err_type)
 
             # psycopg2 extensions.Diagnostics object attribute

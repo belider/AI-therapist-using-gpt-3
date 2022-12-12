@@ -2,19 +2,23 @@ from decorators import *
 
 @print_postgre_exception
 def insert_message_in_db(db, user_id, is_bot, message_text, message_timestamp): 
+    message_text = str(message_text).replace("'", "''")
+    print(f"message_text: {message_text}")
     insert_query = f""" INSERT INTO messages (user_id, msg_type, msg_text, msg_dt) 
                         VALUES ({user_id}, {is_bot}, '{message_text}', TIMESTAMP '{message_timestamp}') """
     db.execute_insert_query(insert_query)
 
 @print_postgre_exception
-def get_username_by_userid(db, user_id): 
-    select_query = f"""select user_name from users where user_id = {user_id}"""
+def get_username_and_gender_by_userid(db, user_id): 
+    select_query = f"""select user_name, gender from users where user_id = {user_id}"""
     res = db.execute_select_query(select_query)
     if res == []:
-        user_name = 'аноним'
+        user_name = 'Аноним'
+        gender = 'masc'
     else:
         user_name = res[0][0]
-    return user_name
+        gender = res[0][1]
+    return (user_name, gender)
 
 @print_postgre_exception
 def get_messages_from_last_user_command(db, user_id):
@@ -51,6 +55,8 @@ def get_last_user_message(db, user_id):
 
 @print_postgre_exception
 def insert_gpt_request_to_db(db, request_id, user_id, request_dt, prompt_text, completion_text, total_tokens, model, cost):
+    prompt_text = prompt_text.replace("'", "''")
+    completion_text = completion_text.replace("'", "''")
     insert_query = f""" INSERT INTO gpt_requests (request_id, user_id, request_dt, prompt_text, completion_text, total_tokens, model, cost) 
                         VALUES ('{request_id}', {user_id}, TIMESTAMP '{request_dt}', '{prompt_text}', '{completion_text}', {total_tokens}, '{model}',{cost}) """
     db.execute_insert_query(insert_query)

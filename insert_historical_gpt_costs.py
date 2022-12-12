@@ -82,7 +82,7 @@ for row in user_messages:
     messages_from_last_command = get_messages_from_last_command_by_msg_id(db, user_id, msg_id)
 
     # getting user name
-    user_name = get_username_by_userid(db, user_id)
+    user_name = get_username_and_gender_by_userid(db, user_id)
     
     prompt = construct_prompt_from_messages_history(messages_from_last_command, user_name)
     gpt_response = get_response_by_message(msg_id, user_id)
