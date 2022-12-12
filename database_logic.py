@@ -67,6 +67,11 @@ def get_paid_limit_and_status_by_user(db, user_id):
                         from user_paid_limits
                         where user_id={user_id}"""
     messages_limit = db.execute_select_query(select_query)[0][0]
+    if messages_limit == None: 
+        messages_limit = 50
+        query = f"""INSERT INTO user_paid_limits (user_id, paid_messages) 
+                VALUES ({user_id}, 50);"""
+        db.execute_insert_query(query)
     
     messages_sent = 0
     select_query = f"""select count(distinct request_id) 
@@ -75,7 +80,7 @@ def get_paid_limit_and_status_by_user(db, user_id):
     messages_sent = db.execute_select_query(select_query)[0][0]
     print(f'messages sent = {messages_sent}')
     print(f'paid messages limit = {messages_limit}')
-    
+
     paid_limit_status = ''
     if messages_sent > messages_limit and messages_limit==50: 
         paid_limit_status = 'trial ended'

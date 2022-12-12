@@ -18,9 +18,6 @@ def print_postgre_exception(func):
             print(f'error occured in func: {inspect.stack()[0][3]}', f', caller: {inspect.stack()[1][3]}')
             print ("psycopg2 traceback:", traceback, "-- type:", err_type)
 
-            # psycopg2 extensions.Diagnostics object attribute
-            print ("\nextensions.Diagnostics:", err.diag)
-
             # print the pgcode and pgerror exceptions
             # print ("pgerror:", err.pgerror)
             print ("pgcode:", err.pgcode, "\n")
