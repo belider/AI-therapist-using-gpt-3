@@ -90,6 +90,9 @@ def query_handler(update, context):
 
         #saving eng reply message to DB
         insert_message_in_db(db, user_id, is_bot=True, message_text=response_text_eng, message_timestamp=message_dt + response_time_delta)
+    elif "usd_pay" in query.data: 
+        response_text_ru = """К сожалению бот сейчас не поддерживает формат оплаты в USD. \nНапишите @belonel, чтобы оплатить переводом или в крипте. """
+        query.message.reply_text(response_text_ru)
 
 def start_command(update, context):
     message_dt = update.message.date
@@ -132,6 +135,12 @@ PAID_PERIOD_ENDED_RESPONSE = """_Сообщение от команды бота
 
 Если вы хотите продолжить, вы можете купить еще один пакет на 500 сообщений за 399 руб."""
 
+def get_payment_buttons(payment_link_ru, usd_pay_callback="usd_pay"): 
+    return [
+        [InlineKeyboardButton(text="Оплатить 399 RUB", url=payment_link_ru)], 
+        [InlineKeyboardButton(text="Оплатить в USD", callback_data=usd_pay_callback)]
+    ]
+
 def newsession_command(update, context):
     current_dt = datetime.now()
     message_dt = update.message.date
@@ -152,14 +161,14 @@ def newsession_command(update, context):
         payment_link = create_payment_link(db, user_id, reason=paid_limit_status, amount=399, currency="RUB")
         # send monetization message
         response = TRIAL_ENDED_RESPONSE.format(paid_limit=paid_limit)
-        buttons = [[InlineKeyboardButton(text="Оплатить 399 RUB", url=payment_link)]]
+        buttons = get_payment_buttons(payment_link)
         reply_markup = InlineKeyboardMarkup(buttons)
         update.message.reply_text(response, reply_markup=reply_markup, parse_mode='markdown')
     elif paid_limit_status == 'paid plan ended': 
         # send monetization message
         payment_link = create_payment_link(db, user_id, reason=paid_limit_status, amount=399, currency="RUB")
         response = PAID_PERIOD_ENDED_RESPONSE.format(paid_limit=paid_limit)
-        buttons = [[InlineKeyboardButton(text="Оплатить 399 RUB", url=payment_link)]]
+        buttons = get_payment_buttons(payment_link)
         reply_markup = InlineKeyboardMarkup(buttons)
         update.message.reply_text(response, reply_markup=reply_markup, parse_mode='markdown')
     else: 
@@ -289,14 +298,14 @@ def handle_message(update, context):
         payment_link = create_payment_link(db, user_id, reason=paid_limit_status, amount=399, currency="RUB")
         # send monetization message
         response = TRIAL_ENDED_RESPONSE.format(paid_limit=paid_limit)
-        buttons = [[InlineKeyboardButton(text="Оплатить 399 RUB", url=payment_link)]]
+        buttons = get_payment_buttons(payment_link)
         reply_markup = InlineKeyboardMarkup(buttons)
         update.message.reply_text(response, reply_markup=reply_markup, parse_mode='markdown')
     elif paid_limit_status == 'paid plan ended': 
         # send monetization message
         payment_link = create_payment_link(db, user_id, reason=paid_limit_status, amount=399, currency="RUB")
         response = PAID_PERIOD_ENDED_RESPONSE.format(paid_limit=paid_limit)
-        buttons = [[InlineKeyboardButton(text="Оплатить 399 RUB", url=payment_link)]]
+        buttons = get_payment_buttons(payment_link)
         reply_markup = InlineKeyboardMarkup(buttons)
         update.message.reply_text(response, reply_markup=reply_markup, parse_mode='markdown')
     else: 
