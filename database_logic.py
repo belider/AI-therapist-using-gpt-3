@@ -85,3 +85,15 @@ def get_paid_limit_and_status_by_user(db, user_id):
         paid_limit_status = 'paid'
     
     return (messages_limit, paid_limit_status)
+
+@print_postgre_exception
+def insert_analytics_event_to_db(db, user_id, event_name, event_params={}):
+    event_params = str(event_params).replace("'", '"')
+    query = f"""INSERT INTO events (user_id, event_name, event_parameters, event_dt) 
+                VALUES (
+                    {user_id}, 
+                    '{event_name}', 
+                    '{event_params}', 
+                    now()
+                ) """
+    db.execute_insert_query(query)

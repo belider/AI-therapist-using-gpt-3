@@ -93,6 +93,7 @@ def query_handler(update, context):
     elif "usd_pay" in query.data: 
         response_text_ru = """К сожалению бот сейчас не поддерживает формат оплаты в USD. \nНапишите @belonel, чтобы оплатить переводом или в крипте. """
         query.message.reply_text(response_text_ru)
+        insert_analytics_event_to_db(db, user_id, event_name="payment_message_button_click", event_params={"button": "USD"})
 
 def start_command(update, context):
     message_dt = update.message.date
@@ -164,6 +165,7 @@ def newsession_command(update, context):
         buttons = get_payment_buttons(payment_link)
         reply_markup = InlineKeyboardMarkup(buttons)
         update.message.reply_text(response, reply_markup=reply_markup, parse_mode='markdown')
+        insert_analytics_event_to_db(db, user_id, event_name="payment_message_sent", event_params={"reason": "trial ended"})
     elif paid_limit_status == 'paid plan ended': 
         # send monetization message
         payment_link = create_payment_link(db, user_id, reason=paid_limit_status, amount=399, currency="RUB")
@@ -171,6 +173,7 @@ def newsession_command(update, context):
         buttons = get_payment_buttons(payment_link)
         reply_markup = InlineKeyboardMarkup(buttons)
         update.message.reply_text(response, reply_markup=reply_markup, parse_mode='markdown')
+        insert_analytics_event_to_db(db, user_id, event_name="payment_message_sent", event_params={"reason": "paid plan ended"})
     else: 
         # constructing prompt
         prompt_starter = 'The following is a conversation with a cognitive behavioral therapist.\n\n'
@@ -301,6 +304,7 @@ def handle_message(update, context):
         buttons = get_payment_buttons(payment_link)
         reply_markup = InlineKeyboardMarkup(buttons)
         update.message.reply_text(response, reply_markup=reply_markup, parse_mode='markdown')
+        insert_analytics_event_to_db(db, user_id, event_name="payment_message_sent", event_params={"reason": "trial ended"})
     elif paid_limit_status == 'paid plan ended': 
         # send monetization message
         payment_link = create_payment_link(db, user_id, reason=paid_limit_status, amount=399, currency="RUB")
@@ -308,6 +312,7 @@ def handle_message(update, context):
         buttons = get_payment_buttons(payment_link)
         reply_markup = InlineKeyboardMarkup(buttons)
         update.message.reply_text(response, reply_markup=reply_markup, parse_mode='markdown')
+        insert_analytics_event_to_db(db, user_id, event_name="payment_message_sent", event_params={"reason": "paid plan ended"})
     else: 
         (response, lang) = handle_response(message_text_eng, user_id, context)
         
