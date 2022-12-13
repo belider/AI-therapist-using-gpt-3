@@ -184,6 +184,9 @@ def newsession_command(update, context):
 
         response_candidates_text = create_gpt_response(prompt, db, user_id)
         response_eng = str(response_candidates_text[0])
+        response_eng = response_eng.replace(", it's nice to meet you", '')
+        response_eng = response_eng.replace(", nice to meet you", '')
+        response_eng = re.sub('Nice to meet you, .*\. ', f'{user_name, }', response_eng)
 
         # response_ru = translator.translate(response_eng, dest='ru').text
         response_ru = translate_using_available_translator(text=response_eng, target_lang='ru')
