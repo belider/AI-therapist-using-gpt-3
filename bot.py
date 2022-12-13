@@ -125,8 +125,7 @@ TRIAL_ENDED_RESPONSE = """_Сообщение от команды бота: _
 Мы стремились сделать Софи как можно более доступным и простым способом психологической поддержки. 
 Однако, она использует дорогие модели искусственного интеллекта, чтобы ответы были максимально полезны. 
 
-Если вы хотите продолжить, вы можете купить пакет на 500 сообщений за 399 руб. 
-[Политика возвратов](https://drive.google.com/file/d/1d6nvlcaoPnMDrUdKNvyhBMSKFxa-_UD6/view?usp=sharing)"""
+Если вы хотите продолжить, вы можете купить пакет на 500 сообщений за 399 руб."""
 
 PAID_PERIOD_ENDED_RESPONSE = """_Сообщение от команды бота: _
 
@@ -135,8 +134,7 @@ PAID_PERIOD_ENDED_RESPONSE = """_Сообщение от команды бота
 Мы стремились сделать Софи как можно более доступным и простым способом психологической поддержки. 
 Однако, она использует дорогие модели искусственного интеллекта, чтобы ответы были максимально полезны. 
 
-Если вы хотите продолжить, вы можете купить еще один пакет на 500 сообщений за 399 руб. 
-[Политика возвратов](https://drive.google.com/file/d/1d6nvlcaoPnMDrUdKNvyhBMSKFxa-_UD6/view?usp=sharing)"""
+Если вы хотите продолжить, вы можете купить еще один пакет на 500 сообщений за 399 руб. """
 
 def get_payment_buttons(payment_link_ru, usd_pay_callback="usd_pay"): 
     return [
@@ -185,6 +183,7 @@ def newsession_command(update, context):
         response_candidates_text = create_gpt_response(prompt, db, user_id)
         response_eng = str(response_candidates_text[0])
         response_eng = response_eng.replace(", it's nice to meet you", '')
+        response_eng = response_eng.replace("It's nice to meet you. ", '')
         response_eng = response_eng.replace(", nice to meet you", '')
         response_eng = re.sub('Nice to meet you, .*\. ', f'{user_name, }', response_eng)
 
